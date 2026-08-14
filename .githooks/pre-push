@@ -1,0 +1,51 @@
+#!/bin/sh
+# --------------------------------------------------------------------------- #
+# Last line of defence: no generated attribution leaves this machine.
+#
+# The commit-msg hook handles new commits one at a time. This checks everything
+# actually being pushed -- commits made before the hooks existed, commits pulled
+# from elsewhere, rebases that carried an old message forward -- and looks at
+# file contents as well as messages, since a line in a source comment is as
+# public as one in a commit subject.
+#
+# `.githooks` is excluded from the content scan. These files necessarily contain
+# the patterns they search for, so scanning them finds only themselves.
+#
+# Install: git config core.hooksPath .githooks
+# Bypass, deliberately: git push --no-verify
+# --------------------------------------------------------------------------- #
+
+zero='0000000000000000000000000000000000000000'
+pattern='(Co-[Aa]uthored-[Bb]y:.*<[^>]*noreply@|Generated with \[)'
+status=0
+
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+    [ "$local_sha" = "$zero" ] && continue                    # branch deletion
+
+    if [ "$remote_sha" = "$zero" ]; then
+        range="$local_sha"                                    # new branch: all of it
+    else
+        range="$remote_sha..$local_sha"
+    fi
+    git rev-list "$range" >/dev/null 2>&1 || continue
+
+    hits=$(git log --format='%H %an %ae%n%B' "$range" 2>/dev/null | grep -nE "$pattern")
+    if [ -n "$hits" ]; then
+        echo "" >&2
+        echo "pre-push: BLOCKED -- generated attribution in a commit message:" >&2
+        echo "$hits" | head -10 | sed 's/^/    /' >&2
+        status=1
+    fi
+
+    files=$(git grep -lE "$pattern" "$local_sha" -- . ':(exclude).githooks' 2>/dev/null | head -10)
+    if [ -n "$files" ]; then
+        echo "" >&2
+        echo "pre-push: BLOCKED -- generated attribution in tracked files:" >&2
+        echo "$files" | sed 's/^/    /' >&2
+        status=1
+    fi
+done
+
+[ "$status" -eq 0 ] || echo "
+Nothing was pushed. Fix the history, or push --no-verify if you are certain." >&2
+exit "$status"

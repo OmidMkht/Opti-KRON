@@ -1,0 +1,5 @@
+bus_id,phase,scenario,p_pu,q_pu
+N2,a,base,-0.02,-0.008
+N2,b,base,-0.018,-0.007
+N2,c,base,-0.022,-0.009
+N3,a,base,-0.01,-0.004

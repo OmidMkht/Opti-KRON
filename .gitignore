@@ -1,0 +1,29 @@
+# Julia
+Manifest.toml
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+/docs/build/
+
+# Solver logs and run outputs
+**/outputs/
+*.log
+
+# Editors / environments
+.vscode/
+.venv/
+.CondaPkg/
+tmp/
+
+# Read-only staging copies of the research code being ported from, plus the
+# source data files the shipped cases were converted from. Not published: the
+# research code includes unpublished methods. See reference/README.md.
+reference/
+
+# Private planning document, not part of the release.
+Research Impact Strategy.pdf
+
+
+# Local guidance for coding assistants. Useful on this machine, not part of the
+# published work.
+AGENTS.md

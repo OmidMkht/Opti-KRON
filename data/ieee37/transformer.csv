@@ -1,0 +1,3 @@
+transformer_id,from_bus,from_phases,to_bus,to_phases,model_scope
+Xfm-1,775,abc,709,abc,explicit_ybus
+subXFM,sourcebus,abc,799,abc,explicit_ybus

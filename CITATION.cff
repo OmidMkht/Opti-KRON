@@ -1,0 +1,81 @@
+# GitHub reads this file and shows a "Cite this repository" button on the
+# repository page. The MIT license permits reuse; this file is what tells a
+# reuser how to attribute it. Software and methodology are cited separately:
+# `preferred-citation` below points at the journal paper, which is what most
+# users should cite.
+#
+# TODO before making the repository public:
+#   - fill in `repository-code` with the real URL
+#   - add ORCID identifiers under each author
+#   - after archiving a release on Zenodo, add its DOI under `identifiers`
+cff-version: 1.2.0
+title: "Opti-KRON: optimal Kron-based network reduction for distribution feeders"
+message: >-
+  If you use the Opti-KRON methodology, please cite the journal article under
+  `preferred-citation`. If you use this software or the released benchmark
+  networks, please also cite the software release itself.
+type: software
+license: MIT
+version: 0.1.0-dev
+repository-code: "https://github.com/REPLACE-ME/opti-kron"
+abstract: >-
+  Optimal Kron-based network reduction for balanced single-phase and unbalanced
+  three-phase distribution feeders. Selects which buses to keep by optimization
+  subject to an explicit bound on voltage error, returns an interpretable
+  assignment map from every reduced bus to its super-node, and recovers a radial
+  equivalent of the Kron-reduced network.
+keywords:
+  - Kron reduction
+  - network reduction
+  - distribution feeders
+  - three-phase
+  - unbalanced distribution systems
+  - mixed-integer linear programming
+  - radial networks
+  - power systems
+authors:
+  - family-names: Mokhtari
+    given-names: Omid
+    affiliation: University of Vermont
+    email: omid.mokhtari@uvm.edu
+  - family-names: Chevalier
+    given-names: Samuel
+    affiliation: University of Vermont
+  - family-names: Almassalkhi
+    given-names: Mads
+    affiliation: University of Vermont
+
+preferred-citation:
+  type: article
+  title: >-
+    Structure-preserving Optimal Kron-based Reduction of Radial Distribution
+    Networks
+  journal: Electric Power Systems Research
+  year: 2026
+  doi: 10.1016/j.epsr.2026.113615
+  authors:
+    - family-names: Mokhtari
+      given-names: Omid
+    - family-names: Chevalier
+      given-names: Samuel
+    - family-names: Almassalkhi
+      given-names: Mads
+
+references:
+  - type: conference-paper
+    title: >-
+      Optimal Kron-based Reduction of Networks (Opti-KRON) for Three-phase
+      Distribution Feeders
+    collection-title: 24th Power Systems Computation Conference (PSCC)
+    year: 2026
+    notes: "Three-phase extension: GPU-parallel exhaustive search."
+    identifiers:
+      - type: other
+        value: "arXiv:2510.19608"
+    authors:
+      - family-names: Mokhtari
+        given-names: Omid
+      - family-names: Chevalier
+        given-names: Samuel
+      - family-names: Almassalkhi
+        given-names: Mads

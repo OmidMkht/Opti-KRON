@@ -1,0 +1,5 @@
+bus_id,phases,base_kv,type
+N1,a,12.47,slack
+N2,a,12.47,pq
+N3,a,12.47,pq
+N4,a,12.47,pq

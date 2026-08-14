@@ -1,0 +1,7 @@
+switch_id,from_bus,from_phases,to_bus,to_phases,status
+SW1,13,abc,152,abc,closed
+SW2,18,abc,135,abc,closed
+SW3,60,abc,160,abc,closed
+SW4,61,abc,61s,abc,closed
+SW5,97,abc,197,abc,closed
+SW6,150,abc,149,abc,closed

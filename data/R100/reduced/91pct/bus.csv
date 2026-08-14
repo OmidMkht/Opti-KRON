@@ -1,0 +1,10 @@
+bus_id,phases,base_kv,type
+B1,abc,1,slack
+B3,abc,1,pq
+B5,abc,1,pq
+B14,abc,1,pq
+B27,c,1,pq
+B38,abc,1,pq
+B55,c,1,pq
+B92,b,1,pq
+B95,b,1,pq
