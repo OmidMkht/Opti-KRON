@@ -2,7 +2,7 @@
 # Radialization -- recovering a radial feeder from a meshed Kron-reduced one.
 #
 # Eliminating a bus of degree d makes its d neighbours mutually adjacent
-# (Lemma 1 of the journal paper), so reducing a radial feeder generally yields a
+# (Lemma 1 of the single-phase paper), so reducing a radial feeder generally yields a
 # meshed one. Every mesh is a maximal clique of three or more buses, and those
 # cliques are edge-disjoint -- which is what lets each one be repaired
 # independently.
@@ -13,7 +13,7 @@
 #
 # Reinserting them costs a little reduction and nothing in accuracy: the
 # reinserted buses keep their own injections, so super-node voltages are
-# unchanged. In exchange the reduced network regains sparsity, which in the
+# unchanged. In exchange the reduced network regains sparsity, which in that
 # paper's experiments made downstream OPF solve *faster* despite the extra buses.
 # --------------------------------------------------------------------------- #
 

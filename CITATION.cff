@@ -1,11 +1,10 @@
 # GitHub reads this file and shows a "Cite this repository" button on the
 # repository page. The MIT license permits reuse; this file is what tells a
 # reuser how to attribute it. Software and methodology are cited separately:
-# `preferred-citation` below points at the journal paper, which is what most
+# `preferred-citation` below points at the journal article, which is what most
 # users should cite.
 #
-# TODO before making the repository public:
-#   - fill in `repository-code` with the real URL
+# TODO before tagging a release:
 #   - add ORCID identifiers under each author
 #   - after archiving a release on Zenodo, add its DOI under `identifiers`
 cff-version: 1.2.0
@@ -17,7 +16,7 @@ message: >-
 type: software
 license: MIT
 version: 0.1.0-dev
-repository-code: "https://github.com/REPLACE-ME/opti-kron"
+repository-code: "https://github.com/OmidMkht/Opti-KRON"
 abstract: >-
   Optimal Kron-based network reduction for balanced single-phase and unbalanced
   three-phase distribution feeders. Selects which buses to keep by optimization
@@ -48,11 +47,18 @@ authors:
 preferred-citation:
   type: article
   title: >-
-    Structure-preserving Optimal Kron-based Reduction of Radial Distribution
-    Networks
+    Optimal Kron-based Reduction of Networks (Opti-KRON) for Three-phase
+    Distribution Feeders
   journal: Electric Power Systems Research
-  year: 2026
+  volume: 263
+  start: 113615
+  year: 2027
   doi: 10.1016/j.epsr.2026.113615
+  publisher:
+    name: Elsevier
+  identifiers:
+    - type: other
+      value: "arXiv:2510.19608"
   authors:
     - family-names: Mokhtari
       given-names: Omid
@@ -62,16 +68,16 @@ preferred-citation:
       given-names: Mads
 
 references:
-  - type: conference-paper
+  - type: article
     title: >-
-      Optimal Kron-based Reduction of Networks (Opti-KRON) for Three-phase
-      Distribution Feeders
-    collection-title: 24th Power Systems Computation Conference (PSCC)
-    year: 2026
-    notes: "Three-phase extension: GPU-parallel exhaustive search."
+      Structure-preserving Optimal Kron-based Reduction of Radial Distribution
+      Networks
+    year: 2025
+    url: "https://arxiv.org/abs/2508.15006"
+    notes: "Preprint. Single-phase MILP and the radialization step (Theorem 1)."
     identifiers:
       - type: other
-        value: "arXiv:2510.19608"
+        value: "arXiv:2508.15006"
     authors:
       - family-names: Mokhtari
         given-names: Omid

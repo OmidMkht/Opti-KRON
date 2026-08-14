@@ -93,7 +93,7 @@ its source.
 | `case69` | Baran & Wu, "Optimal capacitor placement on radial distribution systems," *IEEE Trans. Power Delivery* 4(1), 1989. Derived from a portion of the PG&E system. |
 | `case85` | Das et al., radial distribution test system. |
 | `case141` | Khodr et al., 141-bus feeder. |
-| `case533mt` | Malmer & Thorin, *Network reconfiguration for renewable generation maximization*, 2023. The 533-bus system of the journal paper. |
+| `case533mt` | Malmer & Thorin, *Network reconfiguration for renewable generation maximization*, 2023. The 533-bus system of that paper. |
 | `case1197` | Moses et al., hybrid MV/LV system: a 30-bus 22 kV network with 22 copies of a 415 V residential LV network (Western Power, Australia) attached. |
 
 Three things the converter handles that a plain matrix reader would not, and

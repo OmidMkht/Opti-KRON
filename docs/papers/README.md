@@ -1,32 +1,31 @@
 # Papers
 
-The two papers behind this repository. Both are open-access preprints; the
-canonical version of each is the published one, linked first.
+The two papers behind this repository. The journal article is the canonical
+reference; both are on arXiv, open access.
 
-## Journal — single-phase MILP, radialization
-
-> O. Mokhtari, S. Chevalier, and M. Almassalkhi, "Structure-preserving Optimal
-> Kron-based Reduction of Radial Distribution Networks," *Electric Power Systems
-> Research*, 2026.
-
-- Published: [doi:10.1016/j.epsr.2026.113615](https://doi.org/10.1016/j.epsr.2026.113615)
-- Preprint: [arXiv:2508.15006](https://arxiv.org/abs/2508.15006)
-
-Introduces the MILP formulation, the linearized voltage-magnitude error
-constraint, and the radialization step (Theorem 1) implemented in
-[`src/core/radialization.jl`](../../src/core/radialization.jl).
-
-## Conference — three-phase, exhaustive search, GPU
+## Journal — three-phase, exhaustive search, GPU
 
 > O. Mokhtari, S. Chevalier, and M. Almassalkhi, "Optimal Kron-based Reduction of
-> Networks (Opti-KRON) for Three-phase Distribution Feeders," *24th Power Systems
-> Computation Conference (PSCC)*, 2026.
+> Networks (Opti-KRON) for Three-phase Distribution Feeders," *Electric Power
+> Systems Research*, vol. 263, art. 113615, 2027.
 
+- Published: [doi:10.1016/j.epsr.2026.113615](https://doi.org/10.1016/j.epsr.2026.113615)
 - Preprint: [arXiv:2510.19608](https://arxiv.org/abs/2510.19608)
 
 Extends the method to unbalanced feeders: the phase-availability rule
 (φ_j ⊆ φ_i) that [`admissible_pairs`](../../src/core/topology.jl) enforces, and
 the exhaustive-search solver.
+
+## Preprint — single-phase MILP, radialization
+
+> O. Mokhtari, S. Chevalier, and M. Almassalkhi, "Structure-preserving Optimal
+> Kron-based Reduction of Radial Distribution Networks," arXiv preprint, 2025.
+
+- Preprint: [arXiv:2508.15006](https://arxiv.org/abs/2508.15006)
+
+Introduces the MILP formulation, the linearized voltage-magnitude error
+constraint, and the radialization step (Theorem 1) implemented in
+[`src/core/radialization.jl`](../../src/core/radialization.jl).
 
 ## Where each part of the papers lives in the code
 
@@ -47,8 +46,8 @@ the one they care about.
 | Ground-truth accuracy check (the nonconvex annulus) | [`src/optimization/milp.jl`](../../src/optimization/milp.jl) | `annulus_violation` |
 
 The two radiality routes are alternatives, not stages. `radialize` is the
-journal paper's: solve, then repair whatever meshed, which is minimal *for that
-assignment* but chosen without knowing a repair was coming.
+single-phase paper's: solve, then repair whatever meshed, which is minimal *for
+that assignment* but chosen without knowing a repair was coming.
 `add_radiality_constraints!` puts the condition inside the MILP, so the solver
 can trade a merge it would have had to undo for one it can keep.
 

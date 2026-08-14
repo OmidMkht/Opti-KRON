@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# Exhaustive search at q = 1 -- Algorithm 1 of the PSCC/EPSR three-phase paper.
+# Exhaustive search at q = 1 -- Algorithm 1 of the three-phase paper.
 #
 # Where the MILP answers "what is the best assignment?" exactly, the search asks
 # "what is the best single merge available now?" and repeats. One bus is

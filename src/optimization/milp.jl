@@ -376,7 +376,7 @@ The phase loop is what makes this the three-phase model: a merge is checked on
 every phase the *reduced* bus carries, comparing each against the same phase of
 the super-node. `admissible_pairs` has already guaranteed the super-node carries
 them all. On a single-phase feeder the loop body runs once and this is the
-journal paper's constraint.
+single-phase paper's constraint.
 """
 function _annulus_constraints!(model, a, pairs, net::Network, C, Z, V, absV,
     sel, Ē, approach, needed)

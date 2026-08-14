@@ -4,10 +4,10 @@
 # Two solver families sit on one shared core:
 #
 #   src/optimization/  MILP formulation (JuMP). Exact, and the method of the
-#                      journal paper. One phase-aware model covers both phase
-#                      counts -- single-phase is its degenerate case.
+#                      single-phase paper. One phase-aware model covers both
+#                      phase counts -- single-phase is its degenerate case.
 #   src/search/        exhaustive search at q=1, CPU and GPU. The method of the
-#                      PSCC three-phase paper. Handles both phase counts.
+#                      three-phase paper. Handles both phase counts.
 #
 # Both consume a `Network` from src/io and nothing else, so a new input format
 # is one constructor rather than an edit to either solver.

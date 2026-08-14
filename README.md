@@ -169,15 +169,17 @@ published with. See [`data/README.md`](data/README.md) for all of them.
 
 If you use the Opti-KRON methodology, please cite the journal paper:
 
-> O. Mokhtari, S. Chevalier, and M. Almassalkhi, "Structure-preserving Optimal Kron-based
-> Reduction of Radial Distribution Networks," *Electric Power Systems Research*, 2026.
-> [doi:10.1016/j.epsr.2026.113615](https://doi.org/10.1016/j.epsr.2026.113615)
-
-For the three-phase method (exhaustive search, GPU):
-
 > O. Mokhtari, S. Chevalier, and M. Almassalkhi, "Optimal Kron-based Reduction of Networks
-> (Opti-KRON) for Three-phase Distribution Feeders," *24th Power Systems Computation
-> Conference (PSCC)*, 2026. [arXiv:2510.19608](https://arxiv.org/abs/2510.19608)
+> (Opti-KRON) for Three-phase Distribution Feeders," *Electric Power Systems Research*,
+> vol. 263, art. 113615, 2027.
+> [doi:10.1016/j.epsr.2026.113615](https://doi.org/10.1016/j.epsr.2026.113615) ·
+> [arXiv:2510.19608](https://arxiv.org/abs/2510.19608)
+
+For the single-phase MILP and the radialization step:
+
+> O. Mokhtari, S. Chevalier, and M. Almassalkhi, "Structure-preserving Optimal Kron-based
+> Reduction of Radial Distribution Networks," arXiv preprint, 2025.
+> [arXiv:2508.15006](https://arxiv.org/abs/2508.15006)
 
 ## License
 

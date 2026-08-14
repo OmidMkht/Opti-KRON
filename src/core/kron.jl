@@ -4,8 +4,8 @@
 # The assignment matrix `A` is B x B at the *node* level: `A[i, j] = 1` means
 # bus j is represented by super-node i, and `A[i, i] = 1` marks i as a
 # super-node. Injections and voltages live at the node-phase level, so `A` is
-# expanded through the phase mask before it touches them -- this is the paper's
-# `A ⊗ I₃`, generalised to buses that carry different phase subsets.
+# expanded through the phase mask before it touches them -- this is the
+# three-phase paper's `A ⊗ I₃`, generalised to buses carrying different phases.
 #
 # The two directions:
 #
