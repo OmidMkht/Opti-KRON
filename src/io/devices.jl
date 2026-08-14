@@ -3,27 +3,21 @@
 #
 # A transformer, regulator or switch is a modelled device, not just impedance,
 # and its tap ratio, winding connection and phase shift cannot be recovered once
-# it has been folded into a Schur complement. Pinning both terminals preserves
-# it exactly:
-#
-#   Deleting the device edge splits a radial feeder into T_i and T_j, and no
-#   eliminated bus touches both sides -- such a bus would be a second i-j path,
-#   which a tree does not have. So Y_rr is block-diagonal across the split, and
-#   the correction term at entry (i,j) is identically zero:
-#
-#       Y_red[i,j] == Y[i,j]      exactly, to the last bit
-#
-#   The same argument rules out fill-in bridging the sides, so the device also
-#   stays the unique cut edge.
+# folded into a Schur complement. Pinning both terminals preserves it exactly:
+# deleting the device edge splits a radial feeder into T_i and T_j, and no
+# eliminated bus touches both sides -- such a bus would be a second i-j path,
+# which a tree does not have. So Y_rr is block-diagonal across the split, the
+# correction at entry (i,j) is identically zero, and Y_red[i,j] == Y[i,j] to the
+# last bit. The same argument rules out fill-in bridging the sides, so the device
+# also stays the unique cut edge.
 #
 # Loading is not preserved: the assignment relocates injections, so the current
-# through the device changes. The error budget is what bounds that.
+# through the device changes. The error budget bounds that.
 #
-# Two filters matter when reading these tables. Only `model_scope =
-# explicit_ybus` devices are an edge in our Ybus at all -- feeders exported with
-# service transformers already collapsed mark those `collapsed_primary_load`,
-# and on ieee8500 that distinction is 2 pinned buses against 1140. Both
-# terminals must also appear in bus.csv.
+# Two filters matter. Only `model_scope = explicit_ybus` devices are an edge in
+# our Ybus at all -- feeders exported with service transformers already collapsed
+# mark those `collapsed_primary_load`, worth 2 pinned buses against 1140 on
+# ieee8500. Both terminals must also appear in bus.csv.
 # --------------------------------------------------------------------------- #
 
 """
@@ -31,10 +25,9 @@
 
 One piece of equipment the reduction must keep intact, as a bus-index pair.
 
-`kind` is `:transformer` (covering regulators and tap changers, which the
-source data ships in the same table) or `:switch`. `note` carries the source
-file's own qualifier verbatim -- `model_scope` for transformers, `status` for
-switches -- so a reduction can report *why* a bus was pinned.
+`kind` is `:transformer` (covering regulators and tap changers, which ship in the
+same table) or `:switch`. `note` carries the source file's qualifier verbatim --
+`model_scope` or `status` -- so a reduction can report *why* a bus was pinned.
 """
 struct Device
     id::String
@@ -48,21 +41,18 @@ end
     read_devices(dir, net; switches=true, transformers=true) -> Vector{Device}
 
 Devices in `dir` whose terminals both exist in `net` and which are genuine edges
-of `net.Ybus`. Returns an empty vector when the case ships no device files,
-which is the normal case for the MATPOWER feeders.
+of `net.Ybus`. Empty when the case ships no device files, as the MATPOWER feeders
+do not.
 
 Reads `transformer.csv` (`transformer_id, from_bus, from_phases, to_bus,
-to_phases, model_scope`) and `switch.csv` (`switch_id, from_bus, from_phases,
-to_bus, to_phases, status`). Phase columns are ignored -- pinning is per bus,
-and a pinned bus keeps all of its phases.
+to_phases, model_scope`) and `switch.csv` (`switch_id, ..., status`). Phase
+columns are ignored -- pinning is per bus, and a pinned bus keeps every phase.
 
-Only `model_scope == "explicit_ybus"` transformers are returned; see the header
-for why the distinction is worth 45% of `ieee8500`. Switches marked `open` are
-dropped too: an open switch is not an edge in `Ybus`, so there is nothing to
-preserve exactly. Pass `switches=false` to merge across closed switches, which
-is nearly free -- a closed switch is a near-zero-impedance jumper whose two ends
-are electrically one node -- and worth doing unless you need the switch to stay
-operable for reconfiguration studies.
+Only `explicit_ybus` transformers are returned (see the header, worth 45% of
+`ieee8500`), and `open` switches are dropped -- an open switch is not an edge in
+`Ybus`. Pass `switches=false` to merge across closed ones, which is nearly free
+since a closed switch is a jumper whose ends are electrically one node, unless
+the switch must stay operable for reconfiguration studies.
 """
 function read_devices(dir::AbstractString, net::Network;
     switches::Bool=true, transformers::Bool=true)
@@ -94,16 +84,14 @@ function _read_device_file!(found::Vector{Device}, path::AbstractString, kind::S
     has_qualifier = String(qualifier) in names(df)
 
     for row in eachrow(df)
-        # A blank qualifier is unknown, not a value: read it as "" and let the
-        # admission rule decide. Source data leaves switch status blank often.
+        # A blank qualifier is unknown, not a value -- switch status often is.
         raw = has_qualifier ? row[qualifier] : missing
         note = ismissing(raw) ? "" : _as_string(raw)
         admit(note) || continue
 
         from = get(index_of, _as_string(row.from_bus), nothing)
         to = get(index_of, _as_string(row.to_bus), nothing)
-        # A terminal missing from bus.csv means the device was already collapsed
-        # upstream of us; there is no edge here to keep.
+        # A missing terminal means the device was collapsed before it reached us.
         (from === nothing || to === nothing || from == to) && continue
 
         push!(found, Device(_as_string(row[id_column]), kind, from, to, note))
@@ -111,12 +99,7 @@ function _read_device_file!(found::Vector{Device}, path::AbstractString, kind::S
     return found
 end
 
-"""
-    preserved_buses(devices) -> Vector{Int}
-
-The bus indices to pin, sorted and deduplicated. Feed to `solve_milp(...;
-pin=...)` or let [`optikron`](@ref) do it.
-"""
+"Bus indices to pin, sorted and deduplicated. Goes to `solve_milp(...; pin=...)`."
 preserved_buses(devices::AbstractVector{Device}) =
     sort!(unique!(reduce(vcat, ([d.from, d.to] for d in devices); init=Int[])))
 

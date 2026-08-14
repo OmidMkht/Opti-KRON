@@ -1,18 +1,17 @@
 # --------------------------------------------------------------------------- #
 # Radial orientation and the admissible-assignment set.
 #
-# Everything here works at the *node* level, not the node-phase level. That is
-# deliberate and matches the papers: a three-phase node is reduced with all of
-# its phases at once, so orientation, hop distance and assignment eligibility
-# are all properties of the bus, never of an individual phase.
+# Everything here works at the *node* level, matching the papers: a three-phase
+# node is reduced with all of its phases at once, so orientation, hop distance
+# and assignment eligibility are properties of the bus, never of one phase.
 #
 # Two things the solvers need from this file:
 #
 #   orient_radial     the parent/child structure rooted at the slack, which
 #                     defines what "upstream" and "downstream" mean.
 #   admissible_pairs  which (super-node, reduced-node) assignments are legal
-#                     under a hop limit, a direction rule, and -- for
-#                     three-phase feeders -- phase availability.
+#                     under a hop limit, a direction rule, and -- three-phase
+#                     only -- phase availability.
 # --------------------------------------------------------------------------- #
 
 """
@@ -42,10 +41,9 @@ nedges(t::RadialTree) = length(t.from)
 
 Breadth-first orientation of a radial feeder from the slack bus.
 
-Errors if the graph is disconnected or carries a cycle. The cycle check is
-`m == n - 1`, which for a connected graph is exact -- meshed inputs are
-rejected here rather than silently producing an arbitrary spanning tree, since
-every downstream error bound assumes the true radial paths.
+Errors if the graph is disconnected or carries a cycle. The check `m == n - 1` is
+exact for a connected graph, and rejecting here beats silently returning an
+arbitrary spanning tree -- every downstream bound assumes the true radial paths.
 """
 function orient_radial(Lambda::AbstractMatrix, slack::Int)
     n = size(Lambda, 1)
@@ -80,9 +78,8 @@ function orient_radial(Lambda::AbstractMatrix, slack::Int)
         unreached = findall(!, visited)
         error("$(length(unreached)) bus(es) unreachable from the slack, e.g. $(first(unreached, 5)).")
     end
-    # Count edges in the *graph*, not in the BFS tree -- the tree always has
-    # n-1 edges whether or not the graph carries a cycle, so checking the tree
-    # would never detect a mesh.
+    # Count edges in the *graph*, not the BFS tree: the tree has n-1 edges either
+    # way, so checking it would never detect a mesh.
     graph_edges = 0
     for i in 1:n, j in (i+1):n
         iszero(Lambda[i, j]) || (graph_edges += 1)
@@ -97,11 +94,7 @@ end
 
 orient_radial(net::Network) = orient_radial(net.Lambda, net.slack)
 
-"""
-    path_to_root(tree, i) -> Vector{Int}
-
-Buses from `i` up to and including the slack.
-"""
+"Buses from `i` up to and including the slack."
 function path_to_root(tree::RadialTree, i::Int)
     path = [i]
     while tree.parents[path[end]] != 0
@@ -113,12 +106,9 @@ end
 """
     interior_path(tree, i, j) -> Union{Nothing,Vector{Int}}
 
-Buses strictly between `i` and `j` on the unique tree path, excluding both
-endpoints. Returns an empty vector when `i` and `j` are adjacent.
-
-A cluster is only connected if every bus on this interior path also belongs to
-the cluster, which is what makes this the right quantity for the assignment
-constraints.
+Buses strictly between `i` and `j` on the unique tree path, empty when they are
+adjacent. A cluster is connected only if every bus here joins it too, which is
+what the assignment constraints are built on.
 """
 function interior_path(tree::RadialTree, i::Int, j::Int)
     i == j && return Int[]
@@ -138,11 +128,7 @@ function interior_path(tree::RadialTree, i::Int, j::Int)
     return filter(!=(j), interior)
 end
 
-"""
-    hop_distance(tree, i, j) -> Int
-
-Number of edges on the tree path between `i` and `j`.
-"""
+"Number of edges on the tree path between `i` and `j`."
 function hop_distance(tree::RadialTree, i::Int, j::Int)
     i == j && return 0
     p = interior_path(tree, i, j)
@@ -157,11 +143,11 @@ end
 
 Three rules, all from the papers:
 
-- **hop limit** `hops` bounds the tree distance between a reduced bus
-  and its super-node, which is what keeps clusters local.
-- **direction** `:any` allows either orientation; `:downstream` allows a bus to
-  be absorbed only into a bus nearer the slack. Radiality enforcement requires
-  `:downstream`, since an upstream-absorbing assignment can orphan a subtree.
+- **hop limit** `hops` bounds the tree distance from a reduced bus to its
+  super-node, keeping clusters local.
+- **direction** `:any` allows either orientation; `:downstream` only into a bus
+  nearer the slack, which radiality enforcement requires -- an upstream-absorbing
+  assignment can orphan a subtree.
 - **phase availability** a bus may only join a super-node carrying all of its
   phases (constraint (9h) of the three-phase paper). Vacuous single-phase.
 

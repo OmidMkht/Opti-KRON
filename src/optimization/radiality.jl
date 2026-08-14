@@ -1,43 +1,39 @@
 # --------------------------------------------------------------------------- #
 # Radiality as a constraint, rather than a repair.
 #
-# `radialize` in src/core fixes a meshed reduction afterwards (Theorem 1), and
+# `radialize` in src/core repairs a meshed reduction afterwards (Theorem 1), and
 # is minimal *for the assignment it is given* -- but that assignment was chosen
-# without knowing it would need repairing, so the pair is not jointly optimal.
-# Enforcing radiality inside the model lets the solver trade a merge it would
-# have to undo for one it can keep.
+# without knowing it would need repairing. Enforcing radiality inside the model
+# lets the solver trade a merge it would have to undo for one it can keep.
 #
 # Eliminating a bus of degree d makes its neighbours a clique (Lemma 1). On a
 # tree only branching nodes have degree >= 3, so a reduced network is meshed
 # exactly when a branching node is eliminated while two or more of its branches
-# still hold super-nodes. That is expressible in the assignment diagonal alone:
-# for branching node j with m child branches, and d[b] indicating branch b keeps
-# a super-node,
+# still hold super-nodes -- expressible in the assignment diagonal alone. For
+# branching node j with m child branches, and d[b] indicating branch b keeps a
+# super-node,
 #
 #     sum_b d[b] <= 1 + (m - 1) * A[j,j]
 #
 # If j survives the bound is m and nothing is restricted; if j is eliminated the
 # bound is 1, so no fill-in edge can form. `d[b]` needs no integrality -- it is
 # squeezed from above by every member's A[k,k] and from below by their sum, so
-# an integral A forces it, and leaving it continuous keeps the model small.
+# an integral A forces it, and continuous keeps the model small.
 # --------------------------------------------------------------------------- #
 
 """
     add_radiality_constraints!(model, Akk, tree; reach) -> Int
 
-Constrain the assignment so the Kron-reduced network is radial. Returns the
-number of branching nodes that needed constraining.
-
-`Akk` is the diagonal of the assignment matrix and `tree` the feeder's radial
-orientation. Only branching nodes matter; a degree-2 bus can be eliminated
-freely, since collapsing a path leaves a path.
+Constrain the assignment so the Kron-reduced network is radial, returning how
+many branching nodes needed it. Only branching nodes matter; a degree-2 bus can
+go freely, since collapsing a path leaves a path.
 
 `reach[j,k]` says bus `k` is within reach of `j` geometrically -- the hop-limit
-mask, and nothing else. Pass the mask **before** any screening. The presolve
-below argues "`j` is the closest bus outside branch `b` to everything inside
-it", which relies on reachability shrinking with distance; screening removes
-pairs for reasons unrelated to distance, so a screened mask can wrongly report a
-branch as unreachable and force a super-node that was not needed.
+mask, and nothing else. Pass it **before** any screening: the presolve below
+argues "`j` is the closest bus outside branch `b` to everything inside it", which
+relies on reachability shrinking with distance. Screening removes pairs for
+unrelated reasons, so a screened mask can report a branch as unreachable and
+force a super-node that was not needed.
 """
 function add_radiality_constraints!(model, Akk::AbstractVector, tree::RadialTree;
     reach::Union{Nothing,AbstractMatrix}=nothing)
@@ -50,18 +46,16 @@ function add_radiality_constraints!(model, Akk::AbstractVector, tree::RadialTree
         length(branches) >= 2 || continue           # not a branching node
         subtrees = [vcat(c, descendants[c]) for c in branches]
 
-        # A branch nobody outside it can represent must keep a super-node of its
-        # own, whatever the solver would prefer. Every path from outside the
-        # branch into it passes through j, so j is the nearest outside candidate
-        # for all of it: if even j cannot reach some bus k, no outside bus can,
-        # and k's representative has to live inside the branch.
+        # Every path into a branch passes through j, so j is the nearest outside
+        # candidate for all of it: if even j cannot reach some bus k, no outside
+        # bus can, and k's representative has to live inside the branch.
         forced = reach === nothing ? falses(length(branches)) :
                  Bool[!all(reach[j, k] for k in subtree) for subtree in subtrees]
 
         if count(forced) >= 2
             # Two branches that must each keep something cannot both hang off an
-            # eliminated j without meshing it. So j survives, and once it does
-            # it introduces no fill-in at all -- no further constraints needed.
+            # eliminated j without meshing it. So j survives, and then adds no
+            # fill-in at all -- no further constraints needed.
             @constraint(model, Akk[j] == 1)
             constrained += 1
             continue

@@ -13,9 +13,8 @@
 # eliminating them, end up. Together these reproduce Y_red exactly.
 #
 # Two things to expect: Kron reduction can produce *negative* resistances (an
-# equivalent branch is not a physical conductor, and MATPOWER solves it without
-# complaint), and a reduced network is denser than its source unless radialized
-# first -- which is normally what you want to export.
+# equivalent branch is not a conductor, and MATPOWER solves it anyway), and a
+# reduced network is denser than its source unless radialized first.
 #
 # Three-phase feeders are refused. MATPOWER is positive-sequence, and collapsing
 # phases would emit something that is not the network. Those stay in CSV.
@@ -26,18 +25,16 @@
 
 Write the network reduced by assignment `A` as a MATPOWER case file.
 
-`A` is an assignment matrix -- normally the radialized one, since exporting a
-meshed equivalent is rarely what anyone wants. `scenario` picks which loading
-column becomes the case's loads; MATPOWER holds one operating point per file, so
-several scenarios mean several files.
+`A` is an assignment matrix -- normally the radialized one. `scenario` picks
+which loading column becomes the case's loads; MATPOWER holds one operating point
+per file, so several scenarios mean several files.
 
-The case is written in per unit on `base_mva`. The `Network` does not carry the
-bases its CSVs were built with, so pass them if the exported file should be
-readable in engineering units -- they are informational, and the power flow is
-identical either way.
+Written in per unit on `base_mva`. The `Network` does not carry the bases its
+CSVs were built with, so pass them if the file should read in engineering units;
+they are informational and the power flow is identical either way.
 
 The header records which original buses each super-node represents, so the file
-carries its own mapping back to the feeder it came from.
+carries its own mapping back to the feeder.
 """
 function write_matpower(path::AbstractString, net::Network, A::AbstractMatrix;
     scenario::Int=1,
@@ -46,10 +43,9 @@ function write_matpower(path::AbstractString, net::Network, A::AbstractMatrix;
     base_kv::Real=1.0,
     rtol::Real=1e-10)
 
-    # 17 significant digits, not a prettier 10: these files are meant to be
-    # reloaded and re-solved, and 10 digits loses enough on a large admittance
-    # (case69 reaches 3e4) that the reassembled Ybus drifts from the reduction
-    # it came from. 17 is what round-trips a Float64 exactly.
+    # 17 significant digits, not a prettier 10: these files get reloaded and
+    # re-solved, and 10 digits loses enough on a large admittance (case69 reaches
+    # 3e4) that the reassembled Ybus drifts from the reduction it came from.
 
     is_three_phase(net) && error(
         "MATPOWER is a positive-sequence format and cannot represent a three-phase " *

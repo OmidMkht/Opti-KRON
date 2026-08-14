@@ -2,9 +2,8 @@
 # The whole method, end to end, as one call.
 #
 # Feeder -> operating point -> optimal reduction -> radial equivalent -> the
-# accuracy actually achieved, including on the scenarios the optimizer never
-# saw. This is what `run_optikron.jl` drives; keeping it here rather than in the
-# runner means the runner is only its options.
+# accuracy actually achieved, including on scenarios the optimizer never saw.
+# This is what `run_optikron.jl` drives, which leaves the runner as its options.
 # --------------------------------------------------------------------------- #
 
 """
@@ -31,25 +30,22 @@ end
 Reduce a feeder, start to finish.
 
 `case` is a directory under `data/`, a path to one, or a `Network` in hand. `V`
-defaults to [`powerflow`](@ref); pass your own if the feeder needs modelling this
-package's power flow does not do. `directory` says where a pre-loaded `Network`
+defaults to [`powerflow`](@ref). `directory` says where a pre-loaded `Network`
 came from, so its shipped `voltage.csv` and device tables are still found.
 
 `radiality` is `:in_model` (default), `:post` (reinsert the minimal repair set,
-Theorem 1) or `:none`. `:in_model` is the default because `:post` can leave the
-budget behind: reinserting a bus changes `(A-I)C` and so changes `e`, and on
-case533mt at Ē=0.001 the worst violation moved from -1.4e-06 to +3.4e-05.
+Theorem 1) or `:none`. `:post` is not the default because it can leave the budget
+behind: reinserting a bus changes `(A-I)C` and so `e`, and on case533mt at Ē=0.001
+the worst violation moved from -1.4e-06 to +3.4e-05.
 
 `backend` is `:milp` (exact, certified optimum) or `:search_cpu` / `:search_gpu`
 (greedy, no hop limit, scales further). `solver` forces `:gurobi` / `:highs`
-rather than `:auto` -- worth doing for a benchmark, since a timing from a
-solver you did not expect is worse than no timing.
+rather than `:auto`, worth doing for a benchmark.
 
 `preserve` keeps equipment intact where the case ships `transformer.csv` /
 `switch.csv`: `:devices` (default) pins transformers, regulators and switches;
-`:transformers` merges across closed switches, which is nearly free and removes
-a numerical hazard; `:none` pins nothing. The device *model* is preserved
-exactly; the loading through it still moves, bounded by the budget.
+`:transformers` merges across closed switches; `:none` pins nothing. The device
+*model* is preserved exactly; the loading through it still moves.
 """
 function optikron(case;
     Ē::Real=0.01,
@@ -75,15 +71,13 @@ function optikron(case;
     selected = collect(isempty(scenarios) ? (1:nscenarios(network)) : scenarios)
 
     # Shipped voltages and device tables live in the case directory, not in the
-    # `Network`. Naming the case is enough to find them; handing over a loaded
-    # `Network` is not, so `directory` lets a caller that pre-loaded the feeder
-    # say where it came from and keep both.
+    # `Network`, so a caller that pre-loaded the feeder needs `directory` to keep
+    # both.
     source = directory !== nothing ? case_directory(directory) :
              case isa AbstractString ? case_directory(case) : nothing
 
-    # A case that ships its own voltages is stating its operating point; prefer
-    # that to one we would compute, since it may come from a model richer than
-    # this package's power flow.
+    # A case shipping its own voltages is stating its operating point, possibly
+    # from a richer model than this package's power flow. Prefer it.
     shipped = (V === nothing && source !== nothing) ? read_voltage(source, network) : nothing
     operating_point = V !== nothing ? Matrix{ComplexF64}(V) :
                       shipped !== nothing ? shipped : powerflow(network)
@@ -104,11 +98,9 @@ function optikron(case;
             time_limit=time_limit,
             kwargs...)
     else
-        # The search has no hop limit -- it merges neighbours, and distance
-        # accumulates through the chain -- and it keeps the reduced network
-        # radial by only eliminating buses of degree <= 2 rather than by a
-        # constraint. `pin` is expressed the same way as in the MILP: a pinned
-        # bus is simply never offered as the one to eliminate.
+        # No hop limit here -- the search merges neighbours and lets distance
+        # accumulate through the chain -- and radiality comes from eliminating
+        # only degree <= 2 buses rather than from a constraint.
         search_reduce(network, operating_point, Ē;
             scenarios=selected,
             radial=(radiality !== :none),
@@ -161,12 +153,7 @@ function case_directory(name::AbstractString)
     return directory
 end
 
-_unavailable_backend(backend) = error("""
-    backend :$backend is not in this release yet -- the exhaustive search (CPU and
-    GPU) is still being ported; see the Roadmap in README.md. Use :milp, which
-    handles single- and three-phase feeders alike.""")
-
-"Backend-specific line in a `Reduction` summary: each reports where its own effort went."
+"Backend-specific line in a `Reduction` summary: each reports where its effort went."
 function _solution_detail(io::IO, sol::MilpSolution)
     sol.screening === nothing && return
     s = sol.screening
@@ -184,11 +171,9 @@ _solution_detail(io::IO, sol::SearchSolution) =
 Write the reduction out in whichever form the feeder supports, and say so.
 
 Single-phase feeders that came in with line parameters go out as MATPOWER, which
-carries per-branch r/x and can be opened directly in MATPOWER. Everything else
-goes out as CSV, in the schema `load_case` reads. Three-phase feeders can only
-take the second: a MATPOWER branch cannot say it carries a and c but not b.
-
-CSV always additionally carries `assignment.csv`, the reduction map.
+carries per-branch r/x. Everything else goes out as CSV, in the schema
+`load_case` reads, plus `assignment.csv`. Three-phase feeders can only take the
+second: a MATPOWER branch cannot say it carries a and c but not b.
 """
 function export_reduced(r::Reduction, dir::AbstractString; scenarios=r.scenarios)
     if !is_three_phase(r.network) && has_branch_data(r.network)
@@ -200,14 +185,12 @@ end
 """
     export_matpower(r::Reduction, dir; scenarios, base_mva, base_kv) -> Vector{String}
 
-Write the reduced network as MATPOWER case files, one per scenario, so it can be
-opened and solved in MATPOWER directly.
+Write the reduced network as MATPOWER case files, one per scenario.
 
-Defaults to the scenarios the reduction was certified against -- writing a file
-per loading of a 168-scenario case is rarely what anyone means, and the ones the
-budget was enforced on are the ones the equivalent is answerable for.
-
-Three-phase feeders are refused: see [`write_matpower`](@ref).
+Defaults to the scenarios the reduction was certified against: a file per loading
+of a 168-scenario case is rarely what anyone means, and those are the ones the
+equivalent is answerable for. Three-phase feeders are refused, see
+[`write_matpower`](@ref).
 """
 function export_matpower(r::Reduction, dir::AbstractString;
     scenarios=r.scenarios, base_mva::Real=1.0, base_kv::Real=1.0)

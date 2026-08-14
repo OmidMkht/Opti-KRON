@@ -10,8 +10,8 @@
 # and a candidate costs a few scaled column differences instead of a solve.
 #
 # That is also what makes the GPU worthwhile: scoring becomes a wide, shallow
-# sweep over (row, candidate, scenario), and memory does not grow with the
-# scenario count. The cost is Z -- dense, nphase_rows^2, 229 MB on ieee8500.
+# sweep over (row, candidate, scenario). The cost is Z -- dense, nphase_rows^2,
+# 229 MB on ieee8500.
 #
 # The context is generic over its array type, so identical arithmetic runs on
 # Matrix or CuMatrix. A host/device disagreement is then hardware or precision,
@@ -23,9 +23,8 @@ const CUDA_MODULE = Ref{Union{Nothing,Module}}(nothing)
 """
     load_cuda!()
 
-Load CUDA.jl if it is installed, without touching a device. Optional in the same
-way Gurobi is: declared nowhere, loaded here, and absent is not an error until
-someone actually asks for `:gpu`.
+Load CUDA.jl if it is installed, without touching a device. Optional the same way
+Gurobi is: absent is not an error until someone asks for `:gpu`.
 """
 function load_cuda!()
     CUDA_MODULE[] === nothing || return CUDA_MODULE[]
@@ -41,19 +40,18 @@ end
 """
     gpu_available() -> Bool
 
-True when CUDA.jl is installed *and* a device is actually usable. Both halves
-matter: an installed package on a machine with no driver is the common case on
-a laptop, and it should route to the CPU rather than fail late.
+True when CUDA.jl is installed *and* a device is usable. Both halves matter: an
+installed package with no driver behind it is common, and should route to the CPU
+rather than fail late.
 """
 function gpu_available()
     cuda = load_cuda!()
     cuda === nothing && return false
     try
         # `invokelatest`, because `load_cuda!` may have introduced these methods
-        # after this function was compiled. Calling straight through would raise
-        # a world-age MethodError, the `catch` would swallow it, and a perfectly
-        # good GPU would be reported as absent -- exactly the failure
-        # `load_gurobi!` exists to prevent on the solver side.
+        # after this function was compiled. Straight through raises a world-age
+        # MethodError, the `catch` swallows it, and a working GPU is reported
+        # absent -- the same trap `load_gurobi!` avoids on the solver side.
         return Base.invokelatest(cuda.functional)
     catch
         return false
@@ -61,9 +59,9 @@ function gpu_available()
 end
 
 """
-Buffers for the Zbus formulation. `Z` is the dense inverse, `Vcur` the voltages
-of the assignment accepted so far, and `absV` the reference magnitudes. All
-three live wherever the backend puts them -- host or device.
+Buffers for the Zbus formulation: `Z` the dense inverse, `Vcur` the voltages of
+the assignment accepted so far, `absV` the reference magnitudes. All three live
+wherever the backend puts them -- host or device.
 """
 struct Rank1SearchContext{M,R}
     Z::M
@@ -86,18 +84,11 @@ function _search_context(::Val{:gpu}, Z::Matrix{ComplexF64}, Vcur::Matrix{Comple
     return _rank1_context(Z, Vcur, absV, batch, :gpu)
 end
 
-"""
-`:zbus` names the host path explicitly, for when a caller wants it regardless of
-what `backend` resolution would pick. It is the same context `:cpu` builds.
-"""
+"`:zbus` names the host path explicitly. Same context `:cpu` builds."
 _search_context(::Val{:zbus}, Z::Matrix{ComplexF64}, Vcur::Matrix{ComplexF64},
     absV::Matrix{Float64}, batch::Int) = _rank1_context(Z, Vcur, absV, batch, :cpu)
 
-"""
-    _rank1_context(Z, Vcur, absV, batch, device) -> Rank1SearchContext
-
-Place the slack-referenced impedance and the current voltages on `device`.
-"""
+"Place the slack-referenced impedance and the current voltages on `device`."
 function _rank1_context(Z::Matrix{ComplexF64}, Vcur::Matrix{ComplexF64},
     absV::Matrix{Float64}, batch::Int, device::Symbol)
 
@@ -111,11 +102,9 @@ function _rank1_context(Z::Matrix{ComplexF64}, Vcur::Matrix{ComplexF64},
 end
 
 """
-    _accept_context!(context::Rank1SearchContext, net, blocks, Cagg, s, r)
-
-Carry the accepted merge into the cached voltages, by the same rank-1 update
-used to score it. Recomputing `Z * Cagg` here instead would cost a dense
-matrix product per iteration and undo the point of the reformulation.
+Carry the accepted merge into the cached voltages, by the same rank-1 update used
+to score it. Recomputing `Z * Cagg` would cost a dense matrix product per
+iteration and undo the point of the reformulation.
 """
 function _accept_context!(context::Rank1SearchContext, net::Network,
     blocks::Vector{Vector{Int}}, Cagg::Matrix{ComplexF64}, s::Int, r::Int)
@@ -129,10 +118,8 @@ function _accept_context!(context::Rank1SearchContext, net::Network,
 end
 
 """
-    _best_candidate(context::Rank1SearchContext, ...) -> (index, score, error)
-
-Score every candidate through the rank-1 update. The arithmetic is written in
-whole-array operations so it runs unchanged on host and device.
+Score every candidate through the rank-1 update, in whole-array operations so it
+runs unchanged on host and device.
 """
 function _best_candidate(context::Rank1SearchContext, pairs::Vector{Tuple{Int,Int}},
     net::Network, blocks::Vector{Vector{Int}}, Cagg::Matrix{ComplexF64},
@@ -180,14 +167,12 @@ function _best_candidate(context::Rank1SearchContext, pairs::Vector{Tuple{Int,In
 end
 
 """
-    _score_batch(context, source, sink, coefficient, ownermap, ...) -> (scores, worsts)
-
 The rank-1 update and its error, for a whole batch at once.
 
 `Z[:, sink] - Z[:, source]` is the direction each phase's transport moves every
-voltage in; scaling by the current being moved and summing over the (at most
-three) phases gives the perturbation. Adding `Vcur` gives the candidate's
-voltages, and gathering through `ownermap` gives what each bus actually sees.
+voltage in; scaling by the current moved and summing over the (at most three)
+phases gives the perturbation. Adding `Vcur` gives the candidate's voltages, and
+gathering through `ownermap` gives what each bus sees.
 """
 function _score_batch(context::Rank1SearchContext, source::Matrix{Int},
     sink::Matrix{Int}, coefficient::Array{ComplexF64,3}, ownermap::Matrix{Int},

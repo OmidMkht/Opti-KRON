@@ -2,10 +2,9 @@
 # Exhaustive search at q = 1 -- Algorithm 1 of the three-phase paper.
 #
 # Where the MILP answers "what is the best assignment?" exactly, the search asks
-# "what is the best single merge available now?" and repeats. One bus is
-# eliminated per iteration; every feasible pair (s, r) is scored, the best taken,
-# the graph updated. Greedy, so not optimal -- but each step is embarrassingly
-# parallel and needs no solver, which keeps it going where the MILP runs out.
+# "what is the best single merge available now?" and repeats. Greedy, so not
+# optimal -- but each step is embarrassingly parallel and needs no solver, which
+# keeps it going where the MILP runs out.
 #
 # The budget is the MILP's, exactly, so "within E" means one thing whichever
 # backend produced the answer: C = conj(S ./ V), e = Z (A - I) C with Z
@@ -24,17 +23,14 @@
 What the exhaustive search returned, and what it cost.
 
 - `A`          node-level assignment, `B x B`, same convention as the MILP's.
-- `kept`       the super-nodes.
-- `reduction`  fraction of buses eliminated.
-- `objective`  the worst voltage-magnitude error of the accepted assignment.
+- `objective`  worst voltage-magnitude error of the accepted assignment.
 - `status`     `:exhausted` (no feasible merge left -- Algorithm 1's `Δ = 0`),
                `:max_reduction`, or `:time_limit`.
-- `iterations` merges accepted, which is also the number of buses eliminated.
+- `iterations` merges accepted, which is also the buses eliminated.
 - `evaluated`  candidates scored; `screened` is how many were skipped.
 
-There is no optimality gap here: the search does not know what it missed. A
-`SearchSolution` says "this reduction holds the budget", never "no better one
-exists" -- that is what the MILP is for.
+There is no optimality gap: the search does not know what it missed. It says
+"this reduction holds the budget", never "no better one exists".
 """
 struct SearchSolution <: ReductionSolution
     A::Matrix{Float64}
@@ -66,13 +62,13 @@ original voltage magnitude on the selected scenarios.
 
 - `scenarios`      columns of `V` to enforce the budget over. Default: all.
 - `objective`      `:max` scores by worst error (Eq. 15), `:sum` by the total.
-- `radial`         only eliminate buses of current degree <= 2, which keeps the
+- `radial`         only eliminate buses of current degree <= 2, keeping the
                    reduced network radial by construction. A bus becomes
                    eligible later as its neighbours are absorbed.
 - `upstream`       only merge towards the slack, by BFS depth.
 - `max_reduction`  stop once this fraction of buses is gone.
-- `pin`            buses that must survive; never offered for elimination.
-                   Keeps equipment intact -- see `src/io/devices.jl`.
+- `pin`            buses that must survive, keeping equipment intact -- see
+                   [`read_devices`](@ref).
 - `screen`         drop provably-infeasible candidates first (rigorous).
 - `backend`        `:cpu` / `:zbus` (host) or `:gpu`; same arithmetic.
 - `batch`          candidates scored per pass.
@@ -107,9 +103,8 @@ function search_reduce(net::Network, V::AbstractMatrix, Ē::Real;
     all(s -> 1 <= s <= nscenarios(net), sel) ||
         error("`scenarios` indexes outside 1:$(nscenarios(net)).")
 
-    # A missing GPU is a normal state, not a failure: CUDA is optional, and most
-    # machines running this will not have one. Fall back, but say so -- a run
-    # that silently took ten times longer than expected is worse than a warning.
+    # A missing GPU is a normal state, not a failure. Fall back, but say so -- a
+    # run that silently took ten times longer is worse than a warning.
     if backend === :gpu && !gpu_available()
         @warn "CUDA is unavailable, so the search is running on the CPU. " *
               "Same result, same error model, slower on large feeders. " *
@@ -121,12 +116,8 @@ function search_reduce(net::Network, V::AbstractMatrix, Ē::Real;
 
     V̂ = Matrix{ComplexF64}(V[:, sel])
     absV = abs.(V̂)
-    # The same error model the MILP is stated in, and the same one
-    # `annulus_violation` re-checks against: constant current C = conj(S ./ V),
-    # perturbation e = Z (A - I) C, with Z slack-referenced so the slack holds
-    # its voltage. Using Y directly instead -- as the research code does, on a
-    # feeder it has already grounded -- lets the slack float, which understates
-    # the error and lets the search merge past the budget.
+    # The MILP's error model exactly, and the one `annulus_violation` re-checks
+    # against -- see the header for what scoring against Y instead costs.
     C = conj.(Matrix{ComplexF64}(net.S[:, sel]) ./ V̂)
     Z = Zbus === nothing ? bus_impedance(net) : Matrix{ComplexF64}(Zbus)
     size(Z) == (nph, nph) || error("Zbus must be $nph x $nph; got $(size(Z)).")
@@ -180,9 +171,8 @@ function search_reduce(net::Network, V::AbstractMatrix, Ē::Real;
         best === nothing && break
 
         s, r = pairs[best]
-        # The context carries state derived from `Cagg` (the Zbus path caches the
-        # current voltages), so it is updated from the pre-merge currents before
-        # `_accept!` overwrites them.
+        # The context caches state derived from `Cagg`, so it updates from the
+        # pre-merge currents before `_accept!` overwrites them.
         _accept_context!(context, net, blocks, Cagg, s, r)
         _accept!(A, alive, Cagg, owner, members, neighbours, net, blocks, s, r)
         iterations += 1
@@ -235,8 +225,6 @@ function _bus_depths(neighbours::Vector{Set{Int}}, slack::Int)
 end
 
 """
-    _candidate_pairs(net, neighbours, alive, depth, radial) -> Vector{Tuple{Int,Int}}
-
 `𝒜 = {(s, r) | Λ_{s,r} >= 1, φ_r ⊆ φ_s}`, restricted by the `radial` and
 `upstream` rules. `r` is the bus about to be eliminated, `s` the one absorbing
 it; the slack and any pinned bus are never eliminated.
@@ -251,8 +239,7 @@ function _candidate_pairs(net::Network, neighbours::Vector{Set{Int}},
         for s in neighbours[r]
             alive[s] || continue
             depth === nothing || depth[s] < depth[r] || continue
-            # φ_r ⊆ φ_s, per phase and never a phase count: a super-node can
-            # only stand for a bus whose phases it actually carries.
+            # φ_r ⊆ φ_s, per phase and never a phase count.
             all(p -> !net.phases[p, r] || net.phases[p, s], 1:3) || continue
             push!(pairs, (s, r))
         end
@@ -261,15 +248,12 @@ function _candidate_pairs(net::Network, neighbours::Vector{Set{Int}},
 end
 
 """
-    _screen_pairs(pairs, net, blocks, absV, Ē) -> Vector{Tuple{Int,Int}}
-
 Drop candidates that cannot meet the bound under any redistribution.
 
 When `r` takes `s`'s voltage its error is `| |V̂_r| − |V^c_s| |`, and `s`'s own
-error stays within `Ē`, so by the triangle inequality the candidate's error is
-at least `Vdif(s,r) − Ē`. Anything with `Vdif > 2Ē` is therefore infeasible no
-matter what the network does elsewhere -- this prunes without ever being wrong.
-`Vdif` uses only the reference voltages, so it is static and costs one pass.
+error stays within `Ē`, so by the triangle inequality the candidate's error is at
+least `Vdif(s,r) − Ē`. Anything with `Vdif > 2Ē` is infeasible whatever the
+network does elsewhere. `Vdif` uses only reference voltages, so it is static.
 """
 function _screen_pairs(pairs::Vector{Tuple{Int,Int}}, net::Network,
     blocks::Vector{Vector{Int}}, absV::AbstractMatrix, Ē::Real)
@@ -290,8 +274,6 @@ function _screen_pairs(pairs::Vector{Tuple{Int,Int}}, net::Network,
 end
 
 """
-    _phase_pairs(net, blocks, s, r) -> Vector{Tuple{Int,Int}}
-
 Rows of `r` paired with the rows of `s` carrying the same phase. Assumes
 `φ_r ⊆ φ_s`, which `_candidate_pairs` has already checked.
 """

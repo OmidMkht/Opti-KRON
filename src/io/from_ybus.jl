@@ -1,15 +1,14 @@
 # --------------------------------------------------------------------------- #
 # The Ybus fast path, for feeders whose per-line parameters are not recoverable.
 #
-# Everything downstream works identically here -- both solver families,
-# radialization, every metric -- since they all consume Ybus. Unavailable is
-# only what needs per-line r/x: exporting a reduced network as a feeder model,
-# and the :Ladder MILP form. Prefer from_csv.jl when branch data exists.
+# Everything downstream works identically -- both solver families, radialization,
+# every metric consume Ybus. Only exporting a reduced network as a feeder model
+# is lost. Prefer from_csv.jl when branch data exists.
 #
 #   bus.csv    same schema as the branch-based path
 #   ybus.csv   row, col, g, b -- sparse triplets over node-phase rows. Repeated
-#              (row, col) pairs accumulate. Both triangles must be listed: the
-#              loader does not assume symmetry, since transformers and
+#              (row, col) pairs accumulate, and both triangles must be listed:
+#              the loader does not assume symmetry, since transformers and
 #              regulators break it legitimately.
 #   load.csv   optional, same schema as the branch-based path
 # --------------------------------------------------------------------------- #
@@ -56,11 +55,9 @@ end
 """
     network_from_matrices(Ybus, S; phases, slack, bus_ids, name) -> Network
 
-Build a `Network` straight from in-memory matrices, skipping files entirely.
-This is the seam for existing pipelines: anything that already has a `Ybus` and
-an injection matrix can hand them over directly.
-
-`phases` defaults to a balanced single-phase feeder, one row per bus.
+Build a `Network` straight from in-memory matrices -- the seam for an existing
+pipeline that already holds a `Ybus` and an injection matrix. `phases` defaults
+to a balanced single-phase feeder, one row per bus.
 """
 function network_from_matrices(Ybus::AbstractMatrix, S::AbstractMatrix;
     phases::Union{Nothing,AbstractMatrix{Bool}}=nothing,

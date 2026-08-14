@@ -1,16 +1,15 @@
 # --------------------------------------------------------------------------- #
 # Opti-KRON -- optimal Kron-based network reduction for distribution feeders.
 #
-# Two solver families sit on one shared core:
+# Two solver families, both consuming a `Network` from src/io and nothing else,
+# so a new input format is one constructor rather than an edit to either:
 #
-#   src/optimization/  MILP formulation (JuMP). Exact, and the method of the
-#                      single-phase paper. One phase-aware model covers both
-#                      phase counts -- single-phase is its degenerate case.
-#   src/search/        exhaustive search at q=1, CPU and GPU. The method of the
-#                      three-phase paper. Handles both phase counts.
+#   src/optimization/  MILP (JuMP). Exact; the single-phase paper's method.
+#   src/search/        exhaustive search at q=1, CPU and GPU; the three-phase
+#                      paper's method.
 #
-# Both consume a `Network` from src/io and nothing else, so a new input format
-# is one constructor rather than an edit to either solver.
+# Single-phase is the degenerate case of one phase-aware model throughout, never
+# a separate code path.
 # --------------------------------------------------------------------------- #
 module OptiKRON
 

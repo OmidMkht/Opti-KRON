@@ -1,17 +1,10 @@
 # --------------------------------------------------------------------------- #
 # Kron reduction and the assignment algebra around it.
 #
-# The assignment matrix `A` is B x B at the *node* level: `A[i, j] = 1` means
-# bus j is represented by super-node i, and `A[i, i] = 1` marks i as a
-# super-node. Injections and voltages live at the node-phase level, so `A` is
-# expanded through the phase mask before it touches them -- this is the
-# three-phase paper's `A ⊗ I₃`, generalised to buses carrying different phases.
-#
-# The two directions:
-#
-#   aggregate_injections   I_agg = (A ⊗ I₃) I     push loads to super-nodes
-#   lift_voltages          V_kron = (A ⊗ I₃)ᵀ V   give reduced buses their
-#                                                 super-node's voltage
+# `A` is B x B at the *node* level: `A[i,j] = 1` means bus j is represented by
+# super-node i, `A[i,i] = 1` marks i as a super-node. Injections and voltages
+# live at the node-phase level, so `A` is expanded through the phase mask first
+# -- the three-phase paper's `A ⊗ I₃`, generalised to mixed-phase buses.
 # --------------------------------------------------------------------------- #
 
 "Phases carried by bus `i`, in a/b/c order."
@@ -22,10 +15,10 @@ phases_of(net::Network, i::Int) = [PHASE_SYMBOLS[p] for p in 1:3 if net.phases[p
 
 Lift a node-level assignment matrix to node-phase rows.
 
-This is `A ⊗ I₃` when every bus is three-phase. When buses carry different
-phase subsets it maps each phase of a reduced bus onto the *same phase* of its
-super-node, which is why `admissible_pairs` refuses assignments whose
-super-node lacks a phase -- without that guarantee this mapping is undefined.
+`A ⊗ I₃` when every bus is three-phase. When buses carry different phase subsets
+it maps each phase of a reduced bus onto the *same phase* of its super-node,
+which is why `admissible_pairs` refuses assignments whose super-node lacks a
+phase -- without that guarantee the mapping is undefined.
 """
 function expand_assignment(A::AbstractMatrix, net::Network)
     B = nnodes(net)
@@ -53,27 +46,23 @@ end
 """
     aggregate_injections(A, net) -> Matrix{ComplexF64}
 
-Injections after every reduced bus hands its load to its super-node. Reduced
-buses come out at exactly zero, which is the condition making them eligible for
-Kron elimination in the first place.
+`I_agg = (A ⊗ I₃) I` -- injections after every reduced bus hands its load to its
+super-node. Reduced buses come out at exactly zero, the condition for Kron
+elimination.
 """
 aggregate_injections(A::AbstractMatrix, net::Network) = expand_assignment(A, net) * net.S
 
 """
     lift_voltages(A, V, net) -> Matrix
 
-Give every reduced bus the voltage of its super-node, mapping the full-size
-reduced-network solution back onto the original bus set so it can be compared
-against the full-network reference.
+`V_kron = (A ⊗ I₃)ᵀ V` -- give every reduced bus the voltage of its super-node,
+putting the reduced solution back on the original bus set so it can be compared
+against the full one.
 """
 lift_voltages(A::AbstractMatrix, V::AbstractMatrix, net::Network) =
     transpose(expand_assignment(A, net)) * V
 
-"""
-    super_nodes(A) -> Vector{Int}
-
-Buses kept as super-nodes, i.e. the nonzero diagonal of `A`.
-"""
+"Buses kept as super-nodes, i.e. the nonzero diagonal of `A`."
 super_nodes(A::AbstractMatrix) = findall(!iszero, diag(A))
 
 "Fraction of buses eliminated, in [0, 1]."
@@ -86,10 +75,10 @@ Schur complement of the admittance matrix onto the node-phase rows of `kept`.
 
     Y_kron = Y_KK - Y_KR pinv(Y_RR) Y_RK
 
-The pseudo-inverse rather than a plain inverse is what makes this safe for
-three-phase feeders: buses missing a phase contribute zero rows and columns to
-`Y_RR`, so it is structurally singular and a direct solve would fail. On a
-non-singular block `pinv` agrees with `inv`.
+`pinv` rather than a plain inverse is what makes this safe on three-phase
+feeders: buses missing a phase contribute zero rows and columns to `Y_RR`, so it
+is structurally singular and a direct solve would fail. On a non-singular block
+`pinv` agrees with `inv`.
 
 `kept` is a list of *buses*; all phases of a bus are kept or eliminated together.
 """
@@ -123,18 +112,16 @@ Node-level adjacency of a Kron-reduced network. Expect it denser than the
 original: eliminating a bus of degree d makes its neighbours a d-clique (Lemma
 1), which is what `radialization.jl` undoes.
 
-`rtol` is *relative* to the largest magnitude in `Y_reduced`. The Schur
-complement returns rounding residue rather than structural zeros, and comparing
-against absolute zero counts that residue as branches -- enough to make a
-correctly radialized network report as meshed. Keep it relative when overriding:
-an absolute threshold turns the graph nearly complete, and
-[`critical_nodes`](@ref) then runs `maximal_cliques` over it, which is
-exponential. The default sits mid-plateau; on R100/R300 any `rtol` from 1e-14 to
-1e-8 gives exactly `n-1` edges.
+`rtol` is *relative* to the largest magnitude in `Y_reduced`. The Schur complement
+leaves rounding residue rather than structural zeros, and an absolute threshold
+counts that residue as branches -- enough to report a radialized network as
+meshed, and to leave [`critical_nodes`](@ref) running `maximal_cliques` over a
+near-complete graph. The default sits mid-plateau: on R100/R300 any `rtol` from
+1e-14 to 1e-8 gives exactly `n-1` edges.
 
-Coupling is `max(|Y[a,c]|, |Y[c,a]|)`. `Y_reduced` is asymmetric in general --
-transformers and regulators break symmetry legitimately -- and testing one
-direction alone yields an adjacency matrix `Graphs.Graph` rejects.
+Coupling is `max(|Y[a,c]|, |Y[c,a]|)`: `Y_reduced` is asymmetric in general, since
+transformers and regulators break symmetry legitimately, and one direction alone
+yields an adjacency matrix `Graphs.Graph` rejects.
 """
 function reduced_adjacency(Y_reduced::AbstractMatrix, kept::AbstractVector{Int}, net::Network;
     rtol::Real=1e-10)
@@ -157,23 +144,15 @@ function reduced_adjacency(Y_reduced::AbstractMatrix, kept::AbstractVector{Int},
     return adj
 end
 
-"""
-    identity_assignment(net) -> Matrix{Float64}
-
-The unreduced starting point: every bus is its own super-node. This is
-`A_prev` at the first iteration of Algorithm 2.
-"""
+"The unreduced starting point: every bus is its own super-node."
 identity_assignment(net::Network) = Matrix{Float64}(I, nnodes(net), nnodes(net))
 
 """
     assign!(A, super, reduced) -> A
 
 Move `reduced` into `super`'s cluster, carrying along anything already assigned
-to `reduced`.
-
-That second part is what makes iteration work: by the time a bus is absorbed it
-may already represent a cluster of its own, and those buses have to follow it
-rather than being orphaned at a bus that is no longer a super-node.
+to `reduced` -- by the time a bus is absorbed it may represent a cluster of its
+own, and those buses must follow rather than be orphaned at a former super-node.
 """
 function assign!(A::AbstractMatrix, super::Int, reduced::Int)
     super == reduced && error("Cannot assign bus $super to itself.")

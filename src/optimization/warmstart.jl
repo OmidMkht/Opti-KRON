@@ -9,15 +9,14 @@
 #     c_ij * A[i,j] <= Ē,   c_ij = max over phases/scenarios of | |V_i| - |V_j| |
 #
 # with every structural constraint unchanged. That little MILP needs no error
-# machinery, no indicators and no dense Z, and returns a genuinely feasible
-# point of the full problem.
+# machinery, no indicators and no dense Z, and returns a genuinely feasible point
+# of the full problem.
 #
 # Sequencing rule: the pairs used here must be a subset of those the *target*
-# solve has binaries for. Pick a representative from outside that set and the
-# target has no variable to hold it, so the start reads back all-zero and is
-# rejected as infeasible for a reason that looks nothing like its cause. Hence
-# `admissible` is an argument, never derived -- `solve_milp` passes the screened
-# mask, so the rule holds by construction.
+# solve has binaries for. Pick one from outside that set and the target has no
+# variable to hold it, so the start reads back all-zero and is rejected for a
+# reason looking nothing like its cause. Hence `admissible` is an argument, never
+# derived -- `solve_milp` passes the screened mask.
 # --------------------------------------------------------------------------- #
 
 """
@@ -25,9 +24,9 @@
 
 Buses drawing no net power in any of `scenarios`, excluding the slack.
 
-Judged on the injection matrix, which already folds in shunts -- so a bus
-carrying only a shunt is correctly *not* zero-injection. All phases of a bus
-must be quiet for it to count, since buses are reduced whole.
+Judged on the injection matrix, which already folds in shunts, so a bus carrying
+only a shunt is correctly *not* zero-injection. All phases must be quiet, since
+buses are reduced whole.
 """
 function zero_injection_buses(net::Network;
     scenarios=1:nscenarios(net), tol::Real=0.0)
@@ -66,8 +65,8 @@ function zero_injection_warmstart(net::Network, V::AbstractMatrix, Ē::Real,
     isempty(quiet) && return identity_assignment(net)
 
     # "Merging a zero-injection bus is allowed, nothing else." Contiguity then
-    # rules out reaching past a loaded bus on its own, with no extra work: the
-    # interior pair was already removed here, so the path constraint kills it.
+    # rules out reaching past a loaded bus for free: its interior pair is already
+    # gone, so the path constraint kills the outer one.
     allowed = copy(admissible)
     is_quiet = falses(B)
     is_quiet[quiet] .= true

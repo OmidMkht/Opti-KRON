@@ -1,28 +1,25 @@
 # --------------------------------------------------------------------------- #
 # The one network type every Opti-KRON solver consumes.
 #
-# Both solver families -- the MILP in src/optimization and the exhaustive
-# search in src/search -- take a `Network` and nothing else. Adding a new input
-# format means writing one more constructor here, not touching either solver.
+# Both solver families take a `Network` and nothing else, so a new input format
+# is one more constructor here rather than an edit to either solver.
 #
-# Phase handling follows the layout the GPU search already uses: rows of Ybus,
-# V and S are indexed by *node-phase pairs*, not by nodes. `phases` is the
-# 3 x B mask saying which of {a,b,c} each node carries, and `node_rows` maps a
-# node to its block of rows. A balanced single-phase feeder is just the case
-# where `phases` has one true per column -- there is no separate single-phase
-# code path, and adding one would be a mistake.
+# Rows of Ybus, V and S are indexed by *node-phase pairs*, not by nodes: `phases`
+# is the 3 x B mask saying which of {a,b,c} each node carries, and `node_rows`
+# maps a node to its block of rows. A balanced single-phase feeder is just the
+# case where `phases` has one true per column -- there is no separate
+# single-phase code path, and adding one would be a mistake.
 # --------------------------------------------------------------------------- #
 
 """
     Branch
 
-One physical line/transformer, in per-unit. Retained separately from `Ybus`
-because `Ybus` alone cannot be inverted back to per-line parameters once
-shunts, transformers or regulators are present -- and released reduced
-networks are only useful to other researchers if they carry line parameters.
+One physical line/transformer, in per-unit. Kept separately from `Ybus` because
+`Ybus` cannot be inverted back to per-line parameters once shunts, transformers
+or regulators are present -- and a released reduced network is only useful to
+others if it carries them.
 
-`r`, `x`, `b` are `nph x nph` blocks, where `nph` is the number of phases the
-branch carries (1 for a balanced single-phase model, up to 3 otherwise).
+`r`, `x`, `b` are `nph x nph` blocks, `nph` being the phases the branch carries.
 """
 struct Branch
     from::Int
@@ -38,21 +35,17 @@ end
 
 A feeder ready to reduce.
 
-- `bus_ids`     original bus labels, in node order. Preserved verbatim so a
-                reduced network can be exported against the names the source
-                data used rather than against internal indices.
+- `bus_ids`     original bus labels, verbatim, so a reduced network exports
+                against the source data's names rather than internal indices.
 - `phases`      3 x B `Bool` mask over {a,b,c}.
 - `Ybus`        nph x nph admittance, complex, node-phase indexed.
 - `Lambda`      B x B node-level adjacency (1 if any phase couples the nodes).
-- `slack`       node index of the slack bus. Its voltage is not stored: it
-                belongs to an operating point, not to the network, and
-                `slack_voltage` derives a balanced default from `phases`.
-- `S`           nph x nscenarios complex injections. One column per loading
-                scenario; the papers reduce against 2-3 representative columns
-                and validate against the rest.
+- `slack`       node index of the slack bus. Its voltage is not stored -- that
+                belongs to an operating point, not to the network.
+- `S`           nph x nscenarios complex injections, one column per loading
+                scenario.
 - `branches`    per-line parameters, or `nothing` when the network came in
-                through the Ybus fast path. When `nothing`, feeder export and
-                the `:Ladder` MILP form are unavailable; everything else works.
+                through the Ybus fast path -- which only rules out feeder export.
 """
 struct Network
     name::String
@@ -81,10 +74,8 @@ is_three_phase(net::Network) = any(>(1), vec(sum(net.phases, dims=1)))
 has_branch_data(net::Network) = net.branches !== nothing
 
 """
-    node_rows(phases) -> Vector{Vector{Int}}
-
-Rows of `Ybus` / `S` / `V` belonging to each node. Nodes are laid out in
-order, each contributing one row per phase it carries.
+Rows of `Ybus` / `S` / `V` belonging to each node. Nodes lie in order, each
+contributing one row per phase it carries.
 """
 function node_rows(phases::AbstractMatrix{Bool})
     B = size(phases, 2)
@@ -101,14 +92,11 @@ end
 node_rows(net::Network) = node_rows(net.phases)
 
 """
-    adjacency_from_ybus(Ybus, blocks) -> Lambda
-
 Node-level adjacency from admittance sparsity: nodes i and j are adjacent when
-their block of `Ybus` holds any nonzero. Used when the source data ships no
-explicit adjacency -- which is the common case for Ybus-only inputs.
+their block of `Ybus` holds any nonzero. Used when the source ships no explicit
+adjacency, the common case for Ybus-only inputs.
 
-Note this recovers *topology*, not orientation; the radial orientation used by
-radiality constraints is derived separately from the slack bus.
+This recovers *topology*, not orientation -- [`orient_radial`](@ref) does that.
 """
 function adjacency_from_ybus(Ybus::SparseMatrixCSC, blocks::Vector{Vector{Int}})
     B = length(blocks)
@@ -132,13 +120,12 @@ end
 """
     validate(net) -> Network
 
-Fail loudly at import time rather than deep inside a solve. Checks the
-invariants every solver assumes: consistent dimensions, a slack bus in range,
-a connected graph, and no all-zero rows in `Ybus`.
+Fail loudly at import time rather than deep inside a solve: consistent
+dimensions, a slack bus in range, a connected graph, no all-zero `Ybus` rows.
 
-An all-zero Ybus row means an ungrounded Laplacian, which makes the network
-singular and every downstream solve meaningless -- worth catching here, since
-the failure otherwise surfaces as an unhelpful factorization error.
+An all-zero row means an ungrounded Laplacian, so the network is singular and
+every downstream solve is meaningless -- otherwise surfacing much later as an
+unhelpful factorization error.
 """
 function validate(net::Network)
     B, nph = nnodes(net), nphase_rows(net)

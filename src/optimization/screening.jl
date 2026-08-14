@@ -6,7 +6,7 @@
 #   skip  a row that holds under every completion -- no indicators are built
 #
 # Both are conservative, so the screen removes only what could not have changed
-# the answer.
+# the answer -- and it screens the *true* annulus, not its linearisation.
 #
 # The error at row i is e[i,s] = sum_m (Z[i,rep(m)] - Z[i,m]) C[m,s], where
 # rep(m) is unknown but must be one of m's admissible representatives. Bounding
@@ -15,15 +15,11 @@
 # that inside [|V_j| - Ē, |V_j| + Ē]: disjoint means kill, contained means skip,
 # overlapping means build it and let the solver decide.
 #
-# This screens the *true* annulus, not its linearisation -- the right bar, since
-# the linearisation is itself a proxy.
-#
-# Two radii, neither dominant. `_magnitude_radius` is a pure triangle
-# inequality; `_rectangular_radius` brackets Re and Im separately and takes the
-# far corner of the box. The box treats Re and Im as independent when they come
-# from one shared choice of representative -- with Z[i,m]=0, Z[i,r1]=1,
-# Z[i,r2]=j, C=1 the truth is 1, magnitude gives 1, the box gives sqrt(2). Both
-# valid, so the pointwise minimum is valid and beats either.
+# Two radii, neither dominant. `_magnitude_radius` is a pure triangle inequality;
+# `_rectangular_radius` brackets Re and Im separately and takes the far corner of
+# the box, which treats them as independent when they come from one shared choice
+# of representative -- with Z[i,m]=0, Z[i,r1]=1, Z[i,r2]=j, C=1 the truth is 1,
+# magnitude gives 1, the box gives sqrt(2). Both valid, so is their minimum.
 # --------------------------------------------------------------------------- #
 
 """
@@ -60,8 +56,8 @@ end
 
 Prune `admissible` in place and decide which annulus rows to build.
 
-`needed` maps a surviving pair to the `(phase, scenario-slot)` combinations whose
-constraints can actually bind. Runs to a fixed point: killing pairs shrinks the
+`needed` maps a surviving pair to the `(phase, scenario-slot)` combinations that
+can actually bind. Runs to a fixed point: killing pairs shrinks the
 representative sets, which tightens the radius, which can kill more.
 """
 function screen!(admissible::BitMatrix, net::Network, tree::RadialTree,
@@ -110,9 +106,8 @@ function screen!(admissible::BitMatrix, net::Network, tree::RadialTree,
                 doomed && break
             end
 
-            # The diagonal is never killable -- e = 0 is always reachable by
-            # keeping everything -- so a doomed diagonal would mean the bound is
-            # wrong, not the pair.
+            # The diagonal is never killable -- e = 0 is always reachable -- so a
+            # doomed diagonal means the bound is wrong, not the pair.
             if doomed && i != j
                 admissible[ij] = false
                 killed_this_pass += 1
@@ -145,10 +140,10 @@ _rows_for_pair(net::Network, ij::CartesianIndex, nscen::Int) =
 Kill pairs whose cluster could never fit the budget, from voltages alone.
 
 Exact, and it sees what the per-pair bound cannot: contiguity forces every bus
-between `i` and `j` into the same cluster, so all take one post-merge voltage,
-so all their original magnitudes must fit a window of width `2*Ē`. If they do
-not, no assignment rescues the pair, for any injections. This bites hardest
-where the injection bound is weakest -- long-range pairs.
+between `i` and `j` into one cluster, so all take one post-merge voltage, so
+their original magnitudes must fit a window of width `2*Ē`. If they do not, no
+assignment rescues the pair, for any injections -- which bites hardest on
+long-range pairs, where the injection bound is weakest.
 
 Only scenarios in `sel` count: a spread appearing solely in an unmodelled
 scenario is not grounds to remove a pair the model was free to use.
@@ -190,11 +185,9 @@ end
 """
     deviation_bound(Z, C, admissible, net, sel) -> Matrix{Float64}
 
-Radius bounding `|e[i,s]|` over every assignment the current mask allows, for
-each node-phase row and selected scenario.
-
-The pointwise minimum of the magnitude and rectangular bounds; see the header
-for why neither dominates.
+Radius bounding `|e[i,s]|` over every assignment the current mask allows, per
+node-phase row and scenario. Pointwise minimum of the magnitude and rectangular
+bounds; see the header for why neither dominates.
 """
 function deviation_bound(Z::AbstractMatrix, C::AbstractMatrix, admissible::BitMatrix,
     net::Network, sel::AbstractVector{Int})
@@ -206,11 +199,9 @@ function deviation_bound(Z::AbstractMatrix, C::AbstractMatrix, admissible::BitMa
 end
 
 """
-    _representative_rows(admissible, net) -> Vector{Vector{Int}}
-
 For each node-phase row, the rows it could be represented by. Phase `p` of bus
-`j` can only ever move to phase `p` of a bus admitting `j`, which is what keeps
-this a per-row question rather than a per-bus one.
+`j` only ever moves to phase `p` of a bus admitting `j`, which keeps this a
+per-row question rather than a per-bus one.
 """
 function _representative_rows(admissible::BitMatrix, net::Network)
     row_of = _phase_rows(net)
@@ -242,16 +233,13 @@ function _magnitude_radius(Z, C, reps, sel)
 end
 
 """
-    _rectangular_radius(Z, C, reps, sel)
-
 Bracket `Re(e)` and `Im(e)` separately, then take the far corner of the box.
 
-Each term is `(Z[i,r] - Z[i,m]) C[m,s]`, whose real part is
-`dRe*Cr - dIm*Ci` and imaginary part `dRe*Ci + dIm*Cr`. Both are linear in
-`(dRe, dIm)` with coefficients that do not depend on `r`, so intervals for
-`Re(Z[i,r])` and `Im(Z[i,r])` over the admissible reps -- computed once, without
-reference to any scenario -- combine with the sign of each `C` entry to give a
-bound per scenario.
+Each term is `(Z[i,r] - Z[i,m]) C[m,s]`, with real part `dRe*Cr - dIm*Ci` and
+imaginary part `dRe*Ci + dIm*Cr`. Both are linear in `(dRe, dIm)` with
+coefficients independent of `r`, so intervals for `Re(Z[i,r])` and `Im(Z[i,r])`
+over the admissible reps -- computed once, for all scenarios -- combine with the
+sign of each `C` entry to give a per-scenario bound.
 """
 function _rectangular_radius(Z, C, reps, sel)
     nph = length(reps)

@@ -1,9 +1,9 @@
 # --------------------------------------------------------------------------- #
 # The canonical public input format: three CSVs describing buses, lines and
 # loads. Line parameters rather than a raw Ybus, because a Ybus cannot be
-# inverted back to per-line r/x once shunts or transformers are present -- so a
-# Ybus-only pipeline can only ever emit a Ybus. See from_ybus.jl for the fast
-# path when branch data genuinely is not available.
+# inverted back to per-line r/x once shunts or transformers are present, so a
+# Ybus-only pipeline can only ever emit a Ybus. See from_ybus.jl for when branch
+# data genuinely is not available.
 #
 #   bus.csv     bus_id, phases, base_kv, type
 #                 phases over {a,b,c}, e.g. "abc"; exactly one type = "slack"
@@ -23,9 +23,8 @@
 const PHASE_SYMBOLS = (:a, :b, :c)
 const PHASE_INDEX = Dict(:a => 1, :b => 2, :c => 3)
 
-# CSV.jl hands back InlineStrings (String3, String7, ...) for short text columns
-# and raw Ints for numeric ids. Everything downstream keys on `String`, so
-# normalise once at the boundary rather than sprinkling conversions around.
+# CSV.jl hands back InlineStrings for short text columns and raw Ints for numeric
+# ids; everything downstream keys on `String`. Normalise once, at the boundary.
 _as_string(x) = String(string(x))
 
 "Parse a phase string like \"abc\" or \"ac\" into ordered symbols."
@@ -73,10 +72,8 @@ function _require_csv(dir::AbstractString, file::AbstractString)
 end
 
 """
-    _read_bus_table(dir) -> (bus_ids, phases, slack, index_of)
-
 Read `bus.csv`, which both the branch-based and the Ybus fast path depend on:
-it is what fixes bus ordering, the phase mask and the slack bus.
+it fixes bus ordering, the phase mask and the slack bus.
 """
 function _read_bus_table(dir::AbstractString)
     bus_df = _require_csv(dir, "bus.csv")
@@ -149,11 +146,9 @@ function _symmetric_block(row, prefix::String, ph::Vector{Symbol}, row_number::I
 end
 
 """
-    _build_ybus(branches, phases, blocks) -> SparseMatrixCSC
-
-Standard pi-model assembly over node-phase rows. Series admittance is the
-matrix inverse of (r + jx) restricted to the phases the branch carries; the
-total shunt `b` is split half to each end.
+Standard pi-model assembly over node-phase rows. Series admittance is the matrix
+inverse of (r + jx) over the phases the branch carries; the total shunt `b` is
+split half to each end.
 """
 function _build_ybus(branches::Vector{Branch}, phases::AbstractMatrix{Bool}, blocks::Vector{Vector{Int}})
     nph = count(phases)

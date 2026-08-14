@@ -1,21 +1,19 @@
 # --------------------------------------------------------------------------- #
 # Writing a reduced network back out in the schema it was read in.
 #
-# `write_matpower` refuses three-phase feeders, because a MATPOWER case has no
-# way to say "this branch carries a and c but not b". That leaves the four
-# published three-phase feeders and R100/R300 with nowhere to go, so reduced
-# versions of those are written in the same CSV form the cases themselves use:
-# `bus.csv` + `ybus.csv` + `load.csv` + `voltage.csv`, which `load_case` reads
-# straight back through the Ybus fast path.
+# `write_matpower` refuses three-phase feeders, because a MATPOWER case cannot
+# say "this branch carries a and c but not b". That leaves the four published
+# three-phase feeders and R100/R300 with nowhere to go, so reduced versions of
+# those are written in the CSV form the cases themselves use -- `bus.csv` +
+# `ybus.csv` + `load.csv` + `voltage.csv` -- which `load_case` reads straight
+# back through the Ybus fast path.
 #
-# `assignment.csv` is the extra one, and the only file here without an input
-# counterpart. It is the reduction map -- which original bus each super-node
-# stands for -- and it is what makes the reduced network interpretable rather
-# than merely smaller.
+# `assignment.csv` is the only file here without an input counterpart. It is the
+# reduction map, and what makes a reduced network interpretable rather than
+# merely smaller.
 #
-# Everything is written at `%.17g`, full Float64 precision. Reduced admittances
-# span orders of magnitude and a Kron reduction is not something anyone should
-# have to re-run to recover exactly; see the precision note in to_matpower.jl.
+# Everything is written at `%.17g`: a Kron reduction is not something anyone
+# should have to re-run to recover exactly.
 # --------------------------------------------------------------------------- #
 
 """
@@ -27,19 +25,16 @@ Write the Kron reduction induced by assignment `A` into `dir`, in the CSV schema
 Five files:
 
 - `bus.csv`        the kept buses, under their original ids and phases.
-- `ybus.csv`       the reduced admittance, sparse triplets over the kept
-                   node-phase rows -- the Schur complement, not a resampling.
-- `load.csv`       injections after every eliminated bus hands its load to its
-                   super-node.
-- `voltage.csv`    the *full* network's voltage at the kept buses, which is the
-                   operating point the reduction was certified against and what
-                   the reduced network should reproduce. Omitted when `V` is not
-                   given.
+- `ybus.csv`       the reduced admittance as sparse triplets -- the Schur
+                   complement, not a resampling.
+- `load.csv`       injections after every eliminated bus hands its load over.
+- `voltage.csv`    the *full* network's voltage at the kept buses: the operating
+                   point the reduction was certified against, and what the
+                   reduced network should reproduce. Omitted when `V` is absent.
 - `assignment.csv` the reduction map, one row per original bus.
 
-Works for any feeder, single- or three-phase. Single-phase MATPOWER cases can
-also go out through [`write_matpower`](@ref), which carries line parameters this
-form does not.
+Works for any feeder. Single-phase MATPOWER cases can also go out through
+[`write_matpower`](@ref), which carries line parameters this form does not.
 """
 function write_reduced_csv(dir::AbstractString, net::Network, A::AbstractMatrix;
     V::Union{Nothing,AbstractMatrix}=nothing, scenarios=1:nscenarios(net))
@@ -85,10 +80,9 @@ end
 function _write_reduced_ybus(path::AbstractString, Y::AbstractMatrix)
     open(path, "w") do io
         println(io, "row,col,g,b")
-        # The Schur complement is dense in general -- eliminating a bus makes its
-        # neighbours a clique -- so this is written entry by entry rather than
-        # from a sparsity pattern. Exact zeros are skipped; near-zeros are not,
-        # because deciding what counts as structural here belongs to
+        # The Schur complement is dense in general, so this goes entry by entry
+        # rather than from a sparsity pattern. Exact zeros are skipped; near-zeros
+        # are not, since deciding what counts as structural belongs to
         # `reduced_adjacency` and its relative tolerance, not to a file writer.
         for col in axes(Y, 2), row in axes(Y, 1)
             value = Y[row, col]

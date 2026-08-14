@@ -70,7 +70,7 @@ Without them a reduced network can only be emitted as another `Ybus`, which is f
 useful to someone who wants to open it in their own tool.
 
 When branch data genuinely isn't available, there's a fast path that gives up feeder export
-and the `:Ladder` MILP form but is otherwise fully supported:
+but is otherwise fully supported:
 
 ```julia
 net = read_network_ybus("path/to/case")             # bus.csv + ybus.csv (sparse triplets)

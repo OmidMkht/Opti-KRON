@@ -229,8 +229,8 @@ Buses are numbered `B1..Bn`, with `B1` the slack.
 These carry **no per-line parameters** — the underlying model is an assembled
 admittance matrix rather than a branch table — so they ship as `bus.csv` +
 `ybus.csv` and load through the Ybus fast path. Everything works on that path
-except exporting a reduced network as a feeder model and the `:Ladder` MILP
-form. See [`src/io/from_ybus.jl`](../src/io/from_ybus.jl).
+except exporting a reduced network as a feeder model. See
+[`src/io/from_ybus.jl`](../src/io/from_ybus.jl).
 
 `ybus.csv` holds sparse triplets over node-phase rows (`row, col, g, b`), not
 bus indices — a three-phase bus occupies three consecutive rows. `bus.csv` is

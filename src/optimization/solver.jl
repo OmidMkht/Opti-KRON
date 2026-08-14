@@ -1,15 +1,14 @@
 # --------------------------------------------------------------------------- #
 # Solver selection: Gurobi when it is usable, HiGHS otherwise.
 #
-# Gurobi is markedly faster on these MILPs and is what the papers used, but it
-# is commercial. Requiring it would put a licence between an outside researcher
-# and their first successful run -- which is the barrier this package exists to
-# remove. So HiGHS is a hard dependency and always works, and Gurobi is picked
-# up automatically when it is both installed and licensed.
+# Gurobi is markedly faster on these MILPs and is what the papers used, but it is
+# commercial, and requiring it would put a licence between an outside researcher
+# and their first run. So HiGHS is a hard dependency and always works, and Gurobi
+# is picked up automatically when installed and licensed.
 #
-# "Installed" and "licensed" are different failures and both are handled: a
-# missing package throws on load, an absent or expired licence throws when the
-# environment is constructed. Either way we fall back, once, with a notice.
+# "Installed" and "licensed" are different failures, and both are handled: a
+# missing package throws on load, a bad licence throws when the environment is
+# constructed. Either way we fall back, once, with a notice.
 # --------------------------------------------------------------------------- #
 
 const GUROBI_UUID = Base.UUID("2e9cd046-0924-5485-92f1-d5272153d98b")
@@ -26,12 +25,11 @@ Bring Gurobi's methods into scope without touching a licence. Whether it is
 *usable* is [`gurobi_available`](@ref); this answers only whether it is
 installed.
 
-Must run from `__init__`, for pure world-age reasons: `Base.require` defines new
-methods, and those are invisible to any call chain already running. Load and use
-Gurobi inside one dynamic call and MOI's `is_empty` dispatch fails with
-`MethodError: no method matching is_empty(::Gurobi.Optimizer)` -- which is
-exactly what a first `solve_milp` used to do on a licensed machine. The licence
-probe stays lazy; that is the slow part.
+Must run from `__init__`, for world-age reasons: `Base.require` defines methods
+invisible to any call chain already running, so loading and using Gurobi inside
+one dynamic call makes MOI's `is_empty` dispatch fail with `MethodError: no
+method matching is_empty(::Gurobi.Optimizer)` -- what a first `solve_milp` used
+to do on a licensed machine. The licence probe stays lazy; that is the slow part.
 """
 function load_gurobi!()
     _GUROBI_MODULE[] === nothing || return true
@@ -44,8 +42,6 @@ function load_gurobi!()
 end
 
 """
-    gurobi_available() -> Bool
-
 Whether Gurobi can actually solve here: the package loads *and* a licence is
 present. Probed once and cached.
 """
@@ -73,13 +69,13 @@ end
 Build a JuMP optimizer factory.
 
 - `:auto` (default) uses Gurobi when available and HiGHS otherwise.
-- `:gurobi` errors rather than silently falling back — use it when a benchmark
-  result would be misleading if it quietly came from a different solver.
-- `:highs` forces HiGHS even where Gurobi is available, which is what makes a
-  Gurobi-vs-HiGHS comparison possible on the same machine.
+- `:gurobi` errors rather than silently falling back — for benchmarks, where a
+  timing from an unexpected solver is worse than no timing.
+- `:highs` forces HiGHS even where Gurobi is available, which is what makes the
+  two comparable on one machine.
 
-Attributes are set through the solver-independent MOI interface, so the same
-`time_limit` and `mip_gap` mean the same thing to both solvers.
+Attributes go through the solver-independent MOI interface, so `time_limit` and
+`mip_gap` mean the same thing to both.
 """
 function select_optimizer(; prefer::Symbol=:auto,
     verbose::Bool=false,
@@ -101,11 +97,10 @@ function select_optimizer(; prefer::Symbol=:auto,
     end
 
     base = if name === :gurobi
-        # A zero-argument closure rather than the type itself. `gurobi_available`
-        # may have loaded the package during *this* call, in which case its
-        # bindings are not visible in the caller's world age and handing the
-        # type straight to JuMP fails with "must be callable with zero
-        # arguments". Deferring through invokelatest sidesteps that.
+        # A zero-argument closure rather than the type itself: `gurobi_available`
+        # may have loaded the package during *this* call, whose bindings are not
+        # visible in the caller's world age, and handing the type straight to
+        # JuMP then fails with "must be callable with zero arguments".
         let gurobi = _GUROBI_MODULE[]
             () -> Base.invokelatest(getfield(gurobi, :Optimizer))
         end
@@ -145,7 +140,6 @@ function reset_solver_cache!()
     _HIGHS_NOTICE_SHOWN[] = false
     # `_GUROBI_MODULE` is deliberately left alone: it is the loaded module, not
     # probe state, and dropping it would send the next call back through
-    # `Base.require` from whatever call chain is running -- the world-age
-    # failure `load_gurobi!` exists to prevent.
+    # `Base.require` mid-chain -- the world-age failure `load_gurobi!` prevents.
     return nothing
 end

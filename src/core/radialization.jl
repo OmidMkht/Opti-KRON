@@ -1,31 +1,29 @@
 # --------------------------------------------------------------------------- #
 # Radialization -- recovering a radial feeder from a meshed Kron-reduced one.
 #
-# Eliminating a bus of degree d makes its d neighbours mutually adjacent
-# (Lemma 1 of the single-phase paper), so reducing a radial feeder generally yields a
+# Eliminating a bus of degree d makes its d neighbours mutually adjacent (Lemma 1
+# of the single-phase paper), so reducing a radial feeder generally yields a
 # meshed one. Every mesh is a maximal clique of three or more buses, and those
-# cliques are edge-disjoint -- which is what lets each one be repaired
-# independently.
+# cliques are edge-disjoint, which lets each be repaired independently.
 #
-# Theorem 1: for each such clique, take the sub-tree of the *original* feeder
-# spanning the clique's buses; the buses of degree >= 3 in that sub-tree are the
-# minimal set whose reinsertion restores radiality.
+# Theorem 1: for each clique, take the sub-tree of the *original* feeder spanning
+# its buses; the buses of degree >= 3 in that sub-tree are the minimal set whose
+# reinsertion restores radiality.
 #
-# Reinserting them costs a little reduction and nothing in accuracy: the
-# reinserted buses keep their own injections, so super-node voltages are
-# unchanged. In exchange the reduced network regains sparsity, which in that
-# paper's experiments made downstream OPF solve *faster* despite the extra buses.
+# That costs a little reduction and nothing in accuracy -- reinserted buses keep
+# their own injections, so super-node voltages are unchanged -- and buys back the
+# sparsity that made downstream OPF solve *faster* in that paper's experiments,
+# despite the extra buses.
 # --------------------------------------------------------------------------- #
 
 """
     spanning_subtree(tree, nodes) -> Vector{Int}
 
-Buses of the minimal sub-tree of `tree` connecting every bus in `nodes`
-(the Steiner tree, which in a tree is just the union of the pairwise paths).
+Buses of the minimal sub-tree of `tree` connecting every bus in `nodes` -- the
+Steiner tree, which in a tree is the union of the pairwise paths.
 
-Taking paths between *consecutive* members is enough: the union of
-`nodes[1]—nodes[2]`, `nodes[2]—nodes[3]`, ... already connects all of them and
-never leaves the Steiner tree.
+Consecutive members suffice: the union of `nodes[1]—nodes[2]`,
+`nodes[2]—nodes[3]`, ... already connects all of them and never leaves it.
 """
 function spanning_subtree(tree::RadialTree, nodes::AbstractVector{Int})
     length(nodes) <= 1 && return collect(nodes)
@@ -44,11 +42,9 @@ end
     subtree_degrees(tree, members) -> Dict{Int,Int}
 
 Degree of each bus *within* the sub-tree induced on `members` -- edges to buses
-outside the set do not count.
-
-The distinction matters: a bus can have degree 3 in the full feeder yet degree 2
-in the sub-tree, in which case it is not critical and stays reduced. That is the
-case Fig. 3 of the paper calls out with node 2.
+outside the set do not count. The distinction matters: a bus of degree 3 in the
+full feeder can have degree 2 in the sub-tree, and then it is not critical and
+stays reduced (Fig. 3 of the single-phase paper, node 2).
 """
 function subtree_degrees(tree::RadialTree, members::AbstractVector{Int})
     member_set = Set(members)
@@ -100,10 +96,9 @@ end
 
 Reinsert the minimal set of buses that restores radiality.
 
-Each reinserted bus becomes a super-node again and takes back its own injection.
-Every other bus keeps its current super-node, so the voltages at the original
-super-nodes are unchanged -- radialization trades reduction for structure, never
-accuracy.
+Each reinserted bus becomes a super-node again and takes back its own injection;
+every other bus keeps its current one. Radialization trades reduction for
+structure, never accuracy.
 """
 function radialize(net::Network, A::AbstractMatrix;
     tree::RadialTree=orient_radial(net), rtol::Real=1e-10)

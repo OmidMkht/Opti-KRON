@@ -7,30 +7,20 @@
 #              A[i,j] <= A[i,k]                (clusters are connected)
 #              A[i,j] = 1  =>  annulus_ij      (merge respects the budget)
 #
-# A balanced feeder is the degenerate case where every bus carries one phase, so
-# there is no separate single-phase model.
+# A balanced feeder is the degenerate case where every bus carries one phase.
 #
-# The error model. Moving bus j's injection to super-node i perturbs every
-# voltage by e = Z (A - I) C, with C = conj(S ./ V) held fixed at the operating
-# point. That is *linear in A*, which is what makes this a MILP rather than a
-# bilinear program.
+# Error model: moving bus j's injection to super-node i perturbs every voltage by
+# e = Z (A - I) C, with C = conj(S ./ V) fixed at the operating point. Linear in
+# A, which is what makes this a MILP rather than a bilinear program. Z is the
+# slack-referenced bus impedance, because the slack holds its voltage and absorbs
+# whatever the merge pushes at it; plain inv(Ybus) needs a shunt to ground to
+# exist at all, and differs by a uniform shift when it does.
 #
-# Z is the slack-referenced bus impedance -- zero on the slack's rows and
-# columns, inv(Ybus[ns,ns]) elsewhere -- because the slack holds its voltage and
-# absorbs whatever the merge pushes at it. Plain inv(Ybus) needs a shunt to
-# ground to exist at all, and differs by a uniform shift even when it does; it
-# is accepted via `Z` but is not the default. Z is dense where Ybus is sparse,
-# which buys conditioning: a near-zero-impedance jumper puts a near-infinite
-# entry in Ybus and a near-zero one in Z.
-#
-# The annulus. The requirement is on voltage *magnitude*,
-# | |V_i + e_i| - |V_j| | <= E, which excludes a disk and so is nonconvex. Both
-# linearisations work on the aligned error Re(conj(V_i) e_i): `:R` against a
-# first-order bound on |V_i + e_i|, `:S` against the full secant of its square.
-# Neither carries the robustness margin of the source report -- that assumes one
-# merge at a time, and the worst-case sum over simultaneous merges collapses the
-# bound below its own lower limit. So `annulus_violation` re-checks the answer
-# against the untouched nonconvex constraint.
+# The annulus | |V_i + e_i| - |V_j| | <= E is on voltage *magnitude*, so it
+# excludes a disk and is nonconvex. Both linearisations bound the aligned error
+# Re(conj(V_i) e_i): `:R` against a first-order bound on |V_i + e_i|, `:S`
+# against the secant of its square. Neither is robust to simultaneous merges, so
+# `annulus_violation` re-checks the answer against the nonconvex constraint.
 #
 # On/off is by JuMP indicator constraints rather than big-M: no constant to size
 # wrong, and nothing dilutes the LP relaxation.
@@ -41,16 +31,13 @@
 
 What the MILP returned, and what it cost.
 
-- `A`            node-level assignment, `B x B`. `A[i,j] = 1` means bus `j` is
-                 represented by super-node `i`; `A[i,i] = 1` marks a super-node.
-- `kept`         the super-nodes, i.e. `super_nodes(A)`.
-- `reduction`    fraction of buses eliminated, in `[0, 1]`.
-- `status`       JuMP termination status. Check it: a time-limited run can
-                 return a feasible but non-optimal assignment.
-- `gap`          relative MIP gap at termination, `0.0` when proven optimal.
-- `scenarios`    the loading scenarios the error budget was enforced over --
-                 the assignment is only certified against these.
-- `screening`    what preprocessing removed, or `nothing` when `screen=false`.
+- `A`          node-level assignment, `B x B`. `A[i,j] = 1` means bus `j` is
+               represented by super-node `i`; `A[i,i] = 1` marks a super-node.
+- `status`     JuMP termination status. Check it: a time-limited run can return
+               a feasible but non-optimal assignment.
+- `scenarios`  the loading scenarios the budget was enforced over -- the
+               assignment is certified against these only.
+- `screening`  what preprocessing removed, or `nothing` when `screen=false`.
 """
 struct MilpSolution <: ReductionSolution
     A::Matrix{Float64}
@@ -77,8 +64,7 @@ end
 
 """
 Render a MIP gap for people. A solver that stopped before finding any bound
-reports a sentinel around 1e97 rather than a gap; printing that as a percentage
-produces a hundred digits of nonsense where "unknown" is the honest answer.
+reports a sentinel around 1e97, where "unknown" is the honest answer.
 """
 function _gap_text(gap)
     iszero(gap) && return ""
@@ -92,12 +78,11 @@ end
 Reduce `net` as far as possible while holding every merged bus within `Ē` per
 unit of its original voltage magnitude.
 
-`V` is the power-flow solution of the *unreduced* feeder, and the operating
-point the constant-current model linearises around. It is passed in rather than
-computed here because it is a modelling choice: a feeder with delta connections,
-ZIP loads or regulator taps belongs in a tool that models them. Check any `V`
-from elsewhere with [`powerflow_residual`](@ref) -- one inconsistent with `Ybus`
-and `S` invalidates the bound while still solving happily.
+`V` is the power-flow solution of the *unreduced* feeder, the operating point the
+constant-current model linearises around. It is an argument because it is a
+modelling choice -- delta connections, ZIP loads and taps belong in a tool that
+models them. Check a `V` from elsewhere with [`powerflow_residual`](@ref): one
+inconsistent with `Ybus` and `S` invalidates the bound while still solving.
 
 - `scenarios`      columns of `S`/`V` to enforce over. Defaults to all, which
                    scales the model linearly; the papers use 2-3 representative
@@ -106,16 +91,15 @@ and `S` invalidates the bound while still solving happily.
 - `direction`      `:any`, or `:downstream` to absorb only towards the slack.
 - `approach`       `:R` or `:S`, the two annulus linearisations (see header).
 - `max_reduction`  refuse to eliminate more than this fraction of buses.
-- `pin`            buses that must survive as super-nodes. Pin both terminals of
-                   a device and its admittance survives exactly -- see
-                   `src/io/devices.jl` and `read_devices`.
+- `pin`            buses that must survive. Pin both terminals of a device and
+                   its admittance survives exactly -- see [`read_devices`](@ref).
 - `warm_start`     `:zero_injection` (default) first merges only buses that
-                   inject nothing, which perturbs no voltage at all, and starts
-                   from that. `:identity`, or an assignment matrix, also work.
+                   inject nothing, perturbing no voltage at all. `:identity` or
+                   an assignment matrix also work.
 - `prefer`, `verbose`, `time_limit`, `mip_gap` go to [`select_optimizer`](@ref).
 
-The returned assignment is *not* radialised: Kron reduction meshes a radial
-feeder, and repairing that is a separate step. Follow with [`radialize`](@ref).
+The result is *not* radialised -- Kron reduction meshes a radial feeder. Follow
+with [`radialize`](@ref).
 """
 function solve_milp(net::Network, V::AbstractMatrix, Ē::Real;
     scenarios=1:nscenarios(net),
@@ -152,11 +136,9 @@ function solve_milp(net::Network, V::AbstractMatrix, Ē::Real;
 
     # ---- geometry ---------------------------------------------------------- #
     admissible = admissible_pairs(net, tree; hops=hops, direction=direction)
-    # Pinning is expressed as geometry, not as an extra constraint: take away
-    # every off-diagonal way of representing a pinned bus and "represented
-    # exactly once" forces A[i,i] = 1 on its own. Doing it here rather than
-    # after the fact means screening, the warm start and the binary count all
-    # see a smaller problem instead of a same-sized one with a fixed variable.
+    # Pinning is geometry, not an extra constraint. Applying it here rather than
+    # afterwards means screening, the warm start and the binary count all see a
+    # smaller problem instead of a same-sized one with a fixed variable.
     _apply_pins!(admissible, pin, B)
     # Radiality reasons about who can reach whom geometrically, so it needs the
     # hop mask before screening removes pairs for unrelated reasons.
@@ -164,15 +146,15 @@ function solve_milp(net::Network, V::AbstractMatrix, Ē::Real;
     paths = _cluster_paths!(admissible, tree)
 
     # ---- operating point --------------------------------------------------- #
-    # Constant current: the injection a bus draws is fixed at whatever current it
-    # was drawing in the base case, so moving the bus moves that current intact.
+    # Constant current: a bus keeps the current it drew in the base case, so
+    # moving the bus moves that current intact.
     C = conj.(Matrix{ComplexF64}(net.S) ./ Matrix{ComplexF64}(V))
     Zfull = Z === nothing ? bus_impedance(net) : Matrix{ComplexF64}(Z)
     size(Zfull) == (nph, nph) || error("Z must be $nph x $nph; got $(size(Zfull)).")
     absV = abs.(V)
 
     # ---- screening --------------------------------------------------------- #
-    # Kills pairs that cannot satisfy the budget under any completion, and marks
+    # Kills pairs that cannot meet the budget under any completion, and marks
     # which annulus rows can bind. Everything it removes was provably irrelevant.
     needed, report = if screen
         result, stats = screen!(admissible, net, tree, V, Ē, Zfull, C, sel)
@@ -188,9 +170,8 @@ function solve_milp(net::Network, V::AbstractMatrix, Ē::Real;
         time_limit=time_limit, mip_gap=mip_gap)
     model = Model(factory)
 
-    # Resolved *after* screening, so the start can only ever pick pairs this
-    # model has a binary for -- see the header of warmstart.jl for what goes
-    # wrong otherwise.
+    # Resolved *after* screening, so the start can only pick pairs this model has
+    # a binary for -- see warmstart.jl for what goes wrong otherwise.
     start_map = _resolve_warm_start(warm_start, net, V, Ē, admissible, tree, sel,
         max_reduction, enforce_radiality, reach, prefer, time_limit)
 
@@ -232,19 +213,17 @@ end
 """
     bus_impedance(net) -> Matrix{ComplexF64}
 
-The slack-referenced bus impedance matrix: `inv(Ybus)` on the non-slack
-node-phase rows, zero on the slack's.
+The slack-referenced bus impedance: `inv(Ybus)` on the non-slack node-phase rows,
+zero on the slack's.
 
-Those zero rows and columns are the model, not a truncation. The slack holds its
-voltage against any current the network asks of it, so a perturbation there
-propagates nowhere (zero column) and the slack's own voltage never moves (zero
-row).
+Those zeros are the model, not a truncation: the slack holds its voltage against
+any current asked of it, so a perturbation there propagates nowhere (zero column)
+and the slack's own voltage never moves (zero row).
 
 Inverting the full `Ybus` instead only works when the feeder carries a shunt to
-ground somewhere -- otherwise `Ybus` is a singular Laplacian, every row summing
-to zero, and `inv` quietly returns entries around 1e12 that cancel to noise in
-the constraint rows rather than failing outright. Feeders assembled from branch
-data with no shunts are exactly that case.
+ground. Without one it is a singular Laplacian, and `inv` quietly returns entries
+around 1e12 that cancel to noise in the constraint rows rather than failing --
+exactly what feeders assembled from branch data do.
 """
 function bus_impedance(net::Network)
     nph = nphase_rows(net)
@@ -255,8 +234,7 @@ function bus_impedance(net::Network)
     Z[non_slack, non_slack] = inv(Y)
 
     # inv() on a numerically singular block returns huge entries rather than
-    # throwing, and the damage only shows up much later as constraint rows that
-    # cancel to noise. One matvec is enough to catch it here instead.
+    # throwing, and the damage surfaces far downstream. One matvec catches it.
     probe = randn(ComplexF64, length(non_slack))
     residual = norm(Y * (Z[non_slack, non_slack] * probe) - probe) / norm(probe)
     residual < 1e-6 ||
@@ -267,21 +245,18 @@ function bus_impedance(net::Network)
 end
 
 """
-    _cluster_paths!(admissible, tree) -> Dict{CartesianIndex,Vector{Int}}
-
 Interior paths of every admissible pair, dropping pairs that could only form a
 disconnected cluster.
 
 A cluster must be connected, so every bus `k` strictly between `i` and `j` must
-join `i` too -- the `A[i,j] <= A[i,k]` constraint. On an unbalanced feeder `k`
-may be *ineligible*: two phase-`a` laterals off a common three-phase backbone
-bus are admissible to each other while the bus between them carries phases `i`
-lacks. The research code skipped those constraints, silently permitting a
-cluster in two pieces; here the pair is dropped instead. On R100 at `hops=5`
-that is 70 of 1198 off-diagonal pairs.
+join `i` too. On an unbalanced feeder `k` may be *ineligible*: two phase-`a`
+laterals off a three-phase backbone bus are admissible to each other while the
+bus between them lacks phases `i` has. Skipping the constraint would permit a
+cluster in two pieces, so the pair is dropped -- on R100 at `hops=5`, 70 of 1198
+off-diagonal pairs.
 
-One pass suffices: paths in a tree compose, so if `(i,k)` is dropped for some
-`m` on its interior path, `m` lies on `i`-to-`j` too.
+One pass suffices: paths in a tree compose, so if `(i,k)` is dropped for some `m`
+on its interior path, `m` lies on `i`-to-`j` too.
 """
 function _cluster_paths!(admissible::BitMatrix, tree::RadialTree)
     _prune_disconnected!(admissible, tree)
@@ -297,8 +272,6 @@ function _cluster_paths!(admissible::BitMatrix, tree::RadialTree)
 end
 
 """
-    _prune_disconnected!(admissible, tree) -> Int
-
 Drop pairs whose cluster could only be disconnected, returning how many went.
 Screening calls this too: removing a pair can orphan the path of another.
 """
@@ -317,13 +290,10 @@ function _prune_disconnected!(admissible::BitMatrix, tree::RadialTree)
 end
 
 """
-    _apply_pins!(admissible, pin, B) -> admissible
-
 Force each bus in `pin` to survive, by clearing every off-diagonal way of
-representing it. Combined with the "represented exactly once" constraint this
-fixes `A[i,i] = 1` without adding a row, and shrinks the model rather than
-merely constraining it. Pinned buses may still represent *other* buses -- only
-their own elimination is removed.
+representing it. With "represented exactly once" that fixes `A[i,i] = 1` without
+adding a row. Pinned buses may still represent *others* -- only their own
+elimination is removed.
 """
 function _apply_pins!(admissible::AbstractMatrix{Bool}, pin::AbstractVector{Int}, B::Int)
     isempty(pin) && return admissible
@@ -339,8 +309,7 @@ end
 
 "Structural constraints: who may represent whom, and what a cluster may look like."
 function _assignment_constraints!(model, A, admissible, paths, slack, B, max_reduction)
-    # Every bus is represented exactly once. This is also what keeps
-    # e = Z(A-I)C valid with Z = inv(Ybus) -- see the header.
+    # Every bus is represented exactly once -- also what keeps e = Z(A-I)C valid.
     for j in 1:B
         @constraint(model, sum(A[i, j] for i in 1:B if admissible[i, j]) == 1)
     end
@@ -367,16 +336,14 @@ function _assignment_constraints!(model, A, admissible, paths, slack, B, max_red
 end
 
 """
-    _annulus_constraints!(...) -> Int
-
 The voltage-error budget, as one indicator-gated pair of inequalities per
 (merge, phase, scenario). Returns how many were added.
 
 The phase loop is what makes this the three-phase model: a merge is checked on
-every phase the *reduced* bus carries, comparing each against the same phase of
-the super-node. `admissible_pairs` has already guaranteed the super-node carries
-them all. On a single-phase feeder the loop body runs once and this is the
-single-phase paper's constraint.
+every phase the *reduced* bus carries, against the same phase of the super-node,
+which `admissible_pairs` has already guaranteed carries them all. On a
+single-phase feeder the body runs once, giving the single-phase paper's
+constraint.
 """
 function _annulus_constraints!(model, a, pairs, net::Network, C, Z, V, absV,
     sel, Ē, approach, needed)
@@ -390,17 +357,13 @@ function _annulus_constraints!(model, a, pairs, net::Network, C, Z, V, absV,
 
     # Re(conj(V_i) e_i) at every row/scenario a constraint will ask for. This is
     # the only place the dense Z is touched, and building the aligned scalar
-    # directly -- rather than e_real and e_imag separately -- halves the work,
-    # since every constraint uses only this combination.
+    # directly rather than e_real and e_imag separately halves the work.
     #
-    # Each of these expressions is dense: Z is dense, so it spans every binary
-    # in the model. They are therefore held as *variables*, pinned by one
-    # equality each, rather than as raw expressions substituted into the
-    # constraints that use them. A super-node is shared by many merges, so
-    # substituting would copy a several-thousand-term expression into every row
-    # referencing it -- on case533mt at hops=5 that is 27282 dense rows where
-    # 1066 suffice. Through a variable each later use is a single coefficient,
-    # and the dense part is paid once.
+    # Z is dense, so each expression spans every binary in the model. They are
+    # therefore held as *variables* pinned by one equality each, not substituted
+    # into the rows that use them: a super-node is shared by many merges, and
+    # substituting would copy a several-thousand-term expression into each --
+    # on case533mt at hops=5, 27282 dense rows where 1066 suffice.
     Dr, Di = _injection_shift(a, pairs, net, C, sel, row_of, nph)
     aligned = Dict{Tuple{Int,Int},VariableRef}()
 
@@ -434,9 +397,8 @@ function _annulus_constraints!(model, a, pairs, net::Network, C, Z, V, absV,
             s = sel[k]
             mag_i, mag_j = absV[ri, s], absV[rj, s]
 
-            # Approach S's aligned term is exactly twice Approach R's, so rather
-            # than scaling the expression we halve the bounds -- same constraint,
-            # one fewer AffExpr per row.
+            # S's aligned term is exactly twice R's, so halve the bounds rather
+            # than scale the expression -- one fewer AffExpr per row.
             lower, upper = if approach === :R
                 mag_i * ((mag_j - Ē) - mag_i), mag_i * ((mag_j + Ē) - mag_i)
             else
@@ -453,16 +415,12 @@ function _annulus_constraints!(model, a, pairs, net::Network, C, Z, V, absV,
 end
 
 """
-    _injection_shift(...) -> (Dr, Di)
-
 `(A - I)C` at the node-phase level, split into real and imaginary parts: the
 current each row gains or loses under the assignment, as an affine expression.
 
-This is `expand_assignment` written for JuMP expressions rather than numbers --
-the same `A ⊗ I₃` generalised to mixed-phase buses, but carrying the variables
-through instead of a sparsity pattern. Row `(i,p)` collects the current of every
-bus `j` that could be assigned to `i` and that carries phase `p`, and gives up
-its own.
+This is [`expand_assignment`](@ref) written for JuMP expressions rather than
+numbers. Row `(i,p)` collects the current of every bus `j` that could be assigned
+to `i` and carries phase `p`, and gives up its own.
 """
 function _injection_shift(a, pairs, net::Network, C, sel, row_of, nph)
     Dr = [AffExpr(0.0) for _ in 1:nph, _ in eachindex(sel)]
@@ -510,9 +468,8 @@ every scenario. `<= 0` means the assignment genuinely respects the budget.
 
 This is the correctness bar, and it deliberately shares no code with the model
 above: it solves `Ybus[ns,ns] e = ((A-I)C)[ns,:]` on the untouched sparse `Ybus`
-with the slack held fixed, and evaluates `| |V_i + e_i| - |V_j| |` directly. The
-MILP only has to produce an assignment that survives *this* test -- it does not
-have to match any particular linearisation.
+and evaluates `| |V_i + e_i| - |V_j| |` directly. The MILP has to produce an
+assignment that survives *this* test, not one that matches a linearisation.
 
 Pass the scenarios the model did *not* see to find out whether a reduction fitted
 to representative scenarios holds up across the rest.
@@ -547,11 +504,7 @@ function annulus_violation(net::Network, A::AbstractMatrix, V::AbstractMatrix,
     return worst
 end
 
-"""
-    _resolve_warm_start(spec, ...) -> Matrix{Float64}
-
-Turn the `warm_start` option into an assignment the model can start from.
-"""
+"Turn the `warm_start` option into an assignment the model can start from."
 function _resolve_warm_start(spec, net, V, Ē, admissible, tree, sel,
     max_reduction, enforce_radiality, reach, prefer, time_limit)
 
