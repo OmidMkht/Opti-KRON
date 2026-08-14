@@ -1,24 +1,17 @@
 # --------------------------------------------------------------------------- #
-# The Ybus fast path: for feeders whose per-line parameters are not recoverable.
+# The Ybus fast path, for feeders whose per-line parameters are not recoverable.
 #
-# Everything downstream of the import works identically on this path -- both
-# solver families, radialization, and all validation metrics -- because they all
-# consume Ybus. What is unavailable is anything needing per-line r/x:
+# Everything downstream works identically here -- both solver families,
+# radialization, every metric -- since they all consume Ybus. Unavailable is
+# only what needs per-line r/x: exporting a reduced network as a feeder model,
+# and the :Ladder MILP form. Prefer from_csv.jl when branch data exists.
 #
-#   * exporting a reduced network as a feeder model (only a reduced Ybus)
-#   * the :Ladder MILP form, which factors the DistFlow recursions per edge
-#
-# Prefer from_csv.jl when branch data exists. Released benchmark cases should
-# ship branch tables so that other researchers can open the reduced networks in
-# their own tools.
-#
-#   bus.csv       same schema as the branch-based path (bus_id, phases, type)
-#   ybus.csv      row, col, g, b   -- sparse triplets over node-phase rows,
-#                 one row per structural nonzero. Repeated (row, col) pairs
-#                 accumulate. Both triangles must be listed; the loader does
-#                 not assume symmetry, since transformers and regulators break
-#                 it legitimately.
-#   load.csv      optional, same schema as the branch-based path
+#   bus.csv    same schema as the branch-based path
+#   ybus.csv   row, col, g, b -- sparse triplets over node-phase rows. Repeated
+#              (row, col) pairs accumulate. Both triangles must be listed: the
+#              loader does not assume symmetry, since transformers and
+#              regulators break it legitimately.
+#   load.csv   optional, same schema as the branch-based path
 # --------------------------------------------------------------------------- #
 
 """

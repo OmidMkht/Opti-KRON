@@ -1,32 +1,23 @@
 # --------------------------------------------------------------------------- #
 # AC power flow, and the consistency check that goes with it.
 #
-# Opti-KRON linearises around an operating point: the constant-current model
-# C = conj(S ./ V) is fixed at `V`, and every error bound the MILP enforces is a
-# statement about the network *at that point*. So `V` is not an afterthought --
-# it is part of the problem data, on the same footing as `S`.
-#
-# The solver here is a Z-bus fixed point: hold the slack, and repeatedly solve
+# Opti-KRON linearises around an operating point, so `V` is problem data on the
+# same footing as `S`. The solver is a Z-bus fixed point: hold the slack, and
+# repeatedly solve
 #
 #     Ybus[ns,ns] V[ns] = conj(S[ns] ./ V[ns]) - Ybus[ns,slack] V[slack]
 #
-# refactorising nothing, since the matrix never changes. It converges in about
-# seven iterations on the shipped feeders.
+# refactorising nothing. About seven iterations on the shipped feeders.
 #
-# It assumes constant-power, wye-connected injections and a single slack bus.
-# That covers the shipped cases exactly, and it is deliberately not a general
-# distribution power flow -- no delta connections, no ZIP loads, no regulator
-# tap logic. A feeder needing those should be solved in a tool that models them
-# and the resulting voltages handed to Opti-KRON directly, which is why `V` is
-# an input the package accepts rather than one it insists on computing.
+# It assumes constant-power wye injections and one slack -- deliberately not a
+# general distribution power flow. No delta connections, ZIP loads or tap logic;
+# a feeder needing those should be solved elsewhere and its voltages handed over,
+# which is why `V` is an input the package accepts rather than insists on.
 #
-# ---- On the starting point ------------------------------------------------ #
-#
-# The start has to respect phase angles. A three-phase slack sits at
-# 1<0, 1<-120, 1<120, and starting every row at 1<0 instead is not a flat start
-# but a zero-sequence one -- a boundary condition no balanced feeder satisfies.
-# Doing that on R100 left the iteration still moving after 100 passes; starting
-# from the correct balanced angles converges to 1e-13 in seven.
+# The start must respect phase angles. A three-phase slack sits at 1<0, 1<-120,
+# 1<120, and starting every row at 1<0 is not a flat start but a zero-sequence
+# one -- on R100 that left the iteration still moving after 100 passes, against
+# 1e-13 in seven from the correct angles.
 # --------------------------------------------------------------------------- #
 
 "Per-unit voltage of a balanced source on `phases`: a at 0 degrees, b at -120, c at +120."
@@ -51,22 +42,17 @@ slack_voltage(net::Network; magnitude::Number=1.0) =
 """
     powerflow(net; vslack, maxiter, tol) -> Matrix{ComplexF64}
 
-Solve the AC power flow for every loading scenario, returning voltages laid out
-like `net.S`: one row per node-phase, one column per scenario.
+Solve the AC power flow for every scenario, laid out like `net.S`: one row per
+node-phase, one column per scenario. `vslack` defaults to
+[`slack_voltage`](@ref).
 
-`vslack` defaults to [`slack_voltage`](@ref). Pass a vector of one value per
-slack phase to hold the source somewhere else.
+Errors rather than returning a half-converged answer, which would silently
+invalidate every bound derived from it.
 
-Errors rather than returning a half-converged answer -- an operating point that
-has not converged would silently invalidate every bound derived from it.
-
-`tol` is 1e-9 per unit rather than something tighter because the iteration
-cannot do better than the linear solve underneath it. These feeders carry
-near-zero-impedance jumpers, which push the condition number of `Ybus` to
-around 1e9; on R300 the step size bottoms out near 2e-10 and then stops
-improving no matter how many passes it is given. 1e-9 pu is still seven orders
-below the smallest error budget anyone reduces against, so nothing downstream
-can tell the difference.
+`tol` is 1e-9 pu because the iteration cannot beat the linear solve underneath:
+near-zero-impedance jumpers push cond(Ybus) to ~1e9, and on R300 the step size
+bottoms out near 2e-10. That is still seven orders below the smallest budget
+anyone reduces against.
 """
 function powerflow(net::Network;
     vslack::AbstractVector=slack_voltage(net),
@@ -130,20 +116,14 @@ end
 """
     powerflow_residual(net, V) -> Float64
 
-How far `V` is from solving the power flow, in per unit.
+How far `V` is from solving the power flow, in per unit: the size of one Z-bus
+step from `V`. A converged point gives ~1e-12, a flat start ~1.6.
 
-One Z-bus step from `V` must return `V`; this is the size of that step. A
-converged operating point gives something near 1e-12, a flat start gives about
-1.6, and a per-unit base error shows up in between.
-
-Deliberately measured in *voltage* rather than as the mismatch current
-`Ybus V - conj(S ./ V)`. That current form is dominated by whichever branch has
-the smallest impedance -- on R100 a jumper of 4.7e6 pu admittance turns a 5e-7
-voltage difference into a mismatch of 2.5, so a correct `V` scores 2.5 and one
-wrongly scaled by sqrt(3) scores 4.3, and the check cannot tell them apart.
-Going through the impedance instead keeps the units interpretable and the
-conditioning sane, which is the same reason the MILP works with Z rather than
-Ybus.
+Measured in *voltage* rather than as the mismatch current `Ybus V - conj(S./V)`,
+which is dominated by the smallest impedance -- on R100 a jumper of 4.7e6 pu
+admittance turns a 5e-7 voltage difference into a mismatch of 2.5, so a correct
+`V` and one wrongly scaled by sqrt(3) score 2.5 and 4.3 and cannot be told
+apart. Same reason the MILP works with Z rather than Ybus.
 """
 function powerflow_residual(net::Network, V::AbstractMatrix)
     size(V) == (nphase_rows(net), nscenarios(net)) ||

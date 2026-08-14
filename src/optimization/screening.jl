@@ -1,53 +1,29 @@
 # --------------------------------------------------------------------------- #
-# Constraint screening: shrink the MILP before the solver ever sees it.
-#
-# Most admissible pairs are hopeless and most annulus rows can never bind, and
-# both facts are provable in advance by bound propagation. Two payoffs:
+# Constraint screening: shrink the MILP before the solver sees it.
 #
 #   kill  a pair whose merge violates the budget under *every* completion of the
-#         assignment -- the binary is dropped entirely;
-#   skip  a row that holds under every completion -- the indicator constraints
-#         are never built.
+#         assignment -- the binary is dropped entirely
+#   skip  a row that holds under every completion -- no indicators are built
 #
-# Both are conservative: a pair is killed only when even the best case fails, a
-# row skipped only when even the worst case holds. So the screen removes only
-# things that could not have changed the answer.
-#
-# ---- What is being bounded ------------------------------------------------ #
+# Both are conservative, so the screen removes only what could not have changed
+# the answer.
 #
 # The error at row i is e[i,s] = sum_m (Z[i,rep(m)] - Z[i,m]) C[m,s], where
-# rep(m) is whichever super-node ends up representing member m. Nobody knows
-# rep(m) yet, but it must be one of m's admissible representatives, so each term
-# lies in a set that *is* known. Bounding term by term gives a radius on the
-# whole error, and the reverse triangle inequality turns that into a window on
-# the annulus quantity:
+# rep(m) is unknown but must be one of m's admissible representatives. Bounding
+# term by term gives a radius, and the reverse triangle inequality turns that
+# into a window |e_i + V_i| in [|V_i| - dev, |V_i| + dev]. The merge (i,j) needs
+# that inside [|V_j| - Ē, |V_j| + Ē]: disjoint means kill, contained means skip,
+# overlapping means build it and let the solver decide.
 #
-#     |e_i + V_i|  in  [ |V_i| - dev, |V_i| + dev ]
+# This screens the *true* annulus, not its linearisation -- the right bar, since
+# the linearisation is itself a proxy.
 #
-# The merge (i,j) needs that quantity inside [|V_j| - Ē, |V_j| + Ē]. Two
-# intervals: disjoint means kill, contained means skip, overlapping means build
-# the constraint and let the solver decide.
-#
-# This screens the *true* annulus rather than its linearisation, which is the
-# right bar -- the linearisation is itself only a proxy, and `annulus_violation`
-# checks the true constraint at the end. A pair killed here is infeasible for the
-# real constraint under every completion, so it cannot appear in any answer worth
-# having.
-#
-# ---- Two radii, neither dominant ------------------------------------------ #
-#
-# `_magnitude_radius` sums max|Z[i,r] - Z[i,m]| |C[m,s]| over members: a pure
-# triangle inequality.
-#
-# `_rectangular_radius` brackets Re(e) and Im(e) separately by sign-splitting
-# C against intervals of Re(Z) and Im(Z), then takes the far corner of that box.
-#
-# Neither is always tighter. The box treats Re and Im as independent when they
-# actually come from one shared choice of representative: with Z[i,m] = 0,
-# Z[i,r1] = 1, Z[i,r2] = j and C = 1 the true worst case is 1, the magnitude
-# bound gives exactly 1, and the box gives sqrt(2) by combining a worst Re and a
-# worst Im that cannot occur together. Both are valid, so the pointwise minimum
-# is valid too, and beats either alone.
+# Two radii, neither dominant. `_magnitude_radius` is a pure triangle
+# inequality; `_rectangular_radius` brackets Re and Im separately and takes the
+# far corner of the box. The box treats Re and Im as independent when they come
+# from one shared choice of representative -- with Z[i,m]=0, Z[i,r1]=1,
+# Z[i,r2]=j, C=1 the truth is 1, magnitude gives 1, the box gives sqrt(2). Both
+# valid, so the pointwise minimum is valid and beats either.
 # --------------------------------------------------------------------------- #
 
 """
@@ -166,23 +142,16 @@ _rows_for_pair(net::Network, ij::CartesianIndex, nscen::Int) =
 """
     screen_voltage_spread!(admissible, net, tree, absV, Ē, sel) -> Int
 
-Kill pairs whose cluster could never fit inside the budget, using voltages
-alone. Returns how many went.
+Kill pairs whose cluster could never fit the budget, from voltages alone.
 
-Exact, and it sees something the per-pair bound cannot. When `i` absorbs `j`,
-contiguity forces every bus on the path between them into the same cluster, so
-they all take `i`'s post-merge voltage -- one number. Each of them needs its own
-original magnitude within `Ē` of it, so all of those magnitudes must fit in a
-window of width `2*Ē`. If they do not, no assignment can rescue the pair, for
-any injections whatsoever.
+Exact, and it sees what the per-pair bound cannot: contiguity forces every bus
+between `i` and `j` into the same cluster, so all take one post-merge voltage,
+so all their original magnitudes must fit a window of width `2*Ē`. If they do
+not, no assignment rescues the pair, for any injections. This bites hardest
+where the injection bound is weakest -- long-range pairs.
 
-This bites hardest exactly where the injection bound is weakest: long-range
-pairs, whose wide error radius keeps them looking plausible.
-
-Only the scenarios in `sel` count. The model enforces the budget on those alone,
-so a spread that only appears in an unmodelled scenario is not grounds to remove
-a pair the model would have been free to use -- doing that costs reduction and
-makes the screen a restriction rather than a preprocessing step.
+Only scenarios in `sel` count: a spread appearing solely in an unmodelled
+scenario is not grounds to remove a pair the model was free to use.
 """
 function screen_voltage_spread!(admissible::BitMatrix, net::Network, tree::RadialTree,
     absV::AbstractMatrix, Ē::Real, sel::AbstractVector{Int})

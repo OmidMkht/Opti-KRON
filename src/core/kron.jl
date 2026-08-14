@@ -117,36 +117,24 @@ function kron_reduce(net::Network, kept::AbstractVector{Int})
 end
 
 """
-    reduced_adjacency(Y_reduced, kept, net; tol) -> Matrix{Int}
+    reduced_adjacency(Y_reduced, kept, net; rtol) -> Matrix{Int}
 
-Node-level adjacency of a Kron-reduced network. Two kept buses are connected
-when their block of `Y_reduced` couples them by more than `tol`.
+Node-level adjacency of a Kron-reduced network. Expect it denser than the
+original: eliminating a bus of degree d makes its neighbours a d-clique (Lemma
+1), which is what `radialization.jl` undoes.
 
-Expect this to be denser than the original: eliminating a bus of degree d makes
-its d neighbours a clique (Lemma 1). That densification is exactly what
-`radialization.jl` undoes.
-
-`rtol` is *relative* to the largest magnitude in `Y_reduced`, because the Schur
-complement does not return structural zeros -- it returns rounding residue, at
-roughly machine epsilon times the scale of the matrix. Comparing against an
-absolute zero counts that residue as branches, which is enough to make a
-correctly radialized network still report as meshed.
-
-The default sits in the middle of a wide plateau. On R100 and R300 the reduced
-network of a radialized solution has exactly `n-1` edges and is connected for
-every `rtol` from 1e-14 to 1e-8; genuine couplings only start disappearing at
-1e-6. Six orders of margin either side means the constant is not tuned to these
-two cases.
-
-Keep `rtol` relative when overriding. An absolute threshold small enough to
-admit the residue turns the reduced graph nearly complete, and
+`rtol` is *relative* to the largest magnitude in `Y_reduced`. The Schur
+complement returns rounding residue rather than structural zeros, and comparing
+against absolute zero counts that residue as branches -- enough to make a
+correctly radialized network report as meshed. Keep it relative when overriding:
+an absolute threshold turns the graph nearly complete, and
 [`critical_nodes`](@ref) then runs `maximal_cliques` over it, which is
-exponential -- on R300 that is the difference between 0.1 s and not finishing.
+exponential. The default sits mid-plateau; on R100/R300 any `rtol` from 1e-14 to
+1e-8 gives exactly `n-1` edges.
 
-Coupling is measured across both directions at once, `max(|Y[a,c]|, |Y[c,a]|)`.
-`Y_reduced` is not symmetric in general -- transformers and regulators break
-that legitimately -- and testing each direction on its own produces an
-asymmetric adjacency matrix that `Graphs.Graph` rejects outright.
+Coupling is `max(|Y[a,c]|, |Y[c,a]|)`. `Y_reduced` is asymmetric in general --
+transformers and regulators break symmetry legitimately -- and testing one
+direction alone yields an adjacency matrix `Graphs.Graph` rejects.
 """
 function reduced_adjacency(Y_reduced::AbstractMatrix, kept::AbstractVector{Int}, net::Network;
     rtol::Real=1e-10)

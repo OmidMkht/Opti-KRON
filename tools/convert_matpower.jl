@@ -1,37 +1,27 @@
 # --------------------------------------------------------------------------- #
 # Convert MATPOWER `.m` cases into the Opti-KRON CSV format.
 #
-# Run from the repository root:
 #     julia --project=. tools/convert_matpower.jl data/MATPOWER/case69.m data/case69
 #
-# Several files sharing one topology become one case with one scenario each,
-# which is how a high/low loading pair belongs together:
-#     julia --project=. tools/convert_matpower.jl \
-#         data/MATPOWER/case533mt_hi.m,data/MATPOWER/case533mt_lo.m data/case533mt hi,lo
-#
-# ---- Why this is more than reading three matrices ------------------------- #
+# Several files sharing one topology become one case with a scenario each:
+#     julia --project=. tools/convert_matpower.jl #         data/MATPOWER/case533mt_hi.m,data/MATPOWER/case533mt_lo.m data/case533mt hi,lo
 #
 # A MATPOWER case is a *program*, not a data file, and the distribution cases
 # use that. Three things bite:
 #
-#   1. Units. case69, case85 and case141 list branch impedances in ohms and
-#      loads in kW, then convert to per-unit in executable MATLAB at the bottom
-#      of the file. A parser that reads only the matrices gets ohms, silently,
-#      and every per-unit result downstream is wrong by a factor of Vbase^2/Sbase.
-#      case141 additionally splits a kVA load into P and Q through a power
-#      factor. So the trailing statements are parsed and applied, and anything
-#      executable that is *not* recognised is a hard error -- emitting plausible
-#      numbers in the wrong units is the one failure this converter must never
-#      have.
+#   1. Units. case69, case85 and case141 list impedances in ohms and loads in
+#      kW, converting to per unit in executable MATLAB at the foot of the file;
+#      case141 also splits a kVA load through a power factor. Reading only the
+#      matrices silently yields ohms. So the trailing statements are applied,
+#      and any executable statement *not* recognised is a hard error -- emitting
+#      plausible numbers in the wrong units is the failure to never have.
 #
-#   2. Expressions inside the matrices. case533mt writes base voltages as
-#      `135/sqrt(3)` and its MVA base as `50/3`. Entries are therefore evaluated
-#      as arithmetic, not parsed as floats.
+#   2. Expressions inside matrices. case533mt writes `135/sqrt(3)` and `50/3`,
+#      so entries are evaluated as arithmetic rather than parsed as floats.
 #
-#   3. Open switches. case533mt carries 577 branches of which 45 are out of
-#      service -- tie switches held open. Keeping them would close 45 loops and
-#      the feeder would be rejected as meshed. Dropping them leaves 532 branches
-#      across 533 buses: a tree, as intended.
+#   3. Open switches. case533mt carries 45 out-of-service tie branches; keeping
+#      them closes 45 loops and the feeder is rejected as meshed. Dropping them
+#      leaves 532 branches across 533 buses -- a tree, as intended.
 # --------------------------------------------------------------------------- #
 using Printf
 

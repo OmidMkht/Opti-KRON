@@ -1,45 +1,29 @@
 # --------------------------------------------------------------------------- #
 # Equipment that must survive a reduction intact.
 #
-# A transformer, regulator or switch is a *modelled device*, not just impedance.
-# Its tap ratio, winding connection and phase shift are meaningful to whatever
-# reads the reduced network, and none of them can be recovered once the device
-# has been folded into a Schur complement. So the reduction is told to leave
-# both of its terminals standing.
+# A transformer, regulator or switch is a modelled device, not just impedance,
+# and its tap ratio, winding connection and phase shift cannot be recovered once
+# it has been folded into a Schur complement. Pinning both terminals preserves
+# it exactly:
 #
-# Why pinning the terminals is enough -- and exactly enough:
+#   Deleting the device edge splits a radial feeder into T_i and T_j, and no
+#   eliminated bus touches both sides -- such a bus would be a second i-j path,
+#   which a tree does not have. So Y_rr is block-diagonal across the split, and
+#   the correction term at entry (i,j) is identically zero:
 #
-#   `kron_reduce` eliminates buses by Schur complement,
-#   Y_red = Y_kk - Y_kr * pinv(Y_rr) * Y_rk. Take a device on edge (i,j) of a
-#   radial feeder with both i and j kept. Deleting that edge splits the tree
-#   into T_i and T_j, and no eliminated bus is adjacent to both sides -- such a
-#   bus would be a second i-j path, which a tree does not have. So Y_rr is
-#   block-diagonal across the two sides and so is its pseudo-inverse, while
-#   Y_kr[i,:] is supported only on T_i and Y_rk[:,j] only on T_j. The
-#   correction term at entry (i,j) is therefore identically zero:
+#       Y_red[i,j] == Y[i,j]      exactly, to the last bit
 #
-#       Y_red[i,j] == Y[i,j]
+#   The same argument rules out fill-in bridging the sides, so the device also
+#   stays the unique cut edge.
 #
-#   exactly, to the last bit. The same argument rules out fill-in bridging the
-#   two sides, so the device also stays the unique cut edge -- the reduced
-#   network cannot grow a parallel path around it.
+# Loading is not preserved: the assignment relocates injections, so the current
+# through the device changes. The error budget is what bounds that.
 #
-# What this does *not* preserve is loading. The assignment matrix relocates
-# injections, and a bus on the far side of a device may be represented by one
-# on the near side, so the current through the device changes. That is intended:
-# the error budget is what bounds it. The physics model is exact; the loading
-# moves.
-#
-# Two filters matter when reading these files, and skipping either is costly:
-#
-#   - Only devices whose `model_scope` is `explicit_ybus` exist as an edge in
-#     our Ybus at all. Feeders exported with service transformers already
-#     collapsed mark those `collapsed_primary_load`; their secondary bus is not
-#     in `bus.csv`, so there is no edge to preserve and pinning would freeze the
-#     primary for nothing. On `ieee8500` that distinction is 2 pinned buses
-#     against 1140 -- 0.08% of the feeder against 45.6% of it.
-#   - Both terminals must actually appear in `bus.csv`. Source data routinely
-#     names buses that its own bus list does not carry.
+# Two filters matter when reading these tables. Only `model_scope =
+# explicit_ybus` devices are an edge in our Ybus at all -- feeders exported with
+# service transformers already collapsed mark those `collapsed_primary_load`,
+# and on ieee8500 that distinction is 2 pinned buses against 1140. Both
+# terminals must also appear in bus.csv.
 # --------------------------------------------------------------------------- #
 
 """

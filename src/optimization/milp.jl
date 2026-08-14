@@ -1,97 +1,39 @@
 # --------------------------------------------------------------------------- #
 # The Opti-KRON MILP -- one phase-aware formulation.
 #
-# There is no separate single-phase model. A balanced feeder is the degenerate
-# case where every bus carries one phase, so the phase loops below run once and
-# the model collapses to the journal paper's formulation on its own. Writing two
-# models would mean maintaining two, and they would drift.
-#
-#   minimise   sum_i A[i,i]                    (number of super-nodes kept)
-#   subject to sum_i A[i,j] = 1     for all j  (every bus is represented once)
+#   minimise   sum_i A[i,i]                    (super-nodes kept)
+#   subject to sum_i A[i,j] = 1     for all j  (every bus represented once)
 #              A[i,j] <= A[i,i]                (only super-nodes represent)
 #              A[i,j] <= A[i,k]                (clusters are connected)
-#              A[i,j] = 1  =>  annulus_ij      (merge respects the error budget)
+#              A[i,j] = 1  =>  annulus_ij      (merge respects the budget)
 #
-# ---- The error model ------------------------------------------------------ #
+# A balanced feeder is the degenerate case where every bus carries one phase, so
+# there is no separate single-phase model.
 #
-# Moving bus j's injection to super-node i perturbs every voltage in the feeder.
-# Under the constant-current model (C = conj(S ./ V) held fixed at the operating
-# point) that perturbation is exactly
+# The error model. Moving bus j's injection to super-node i perturbs every
+# voltage by e = Z (A - I) C, with C = conj(S ./ V) held fixed at the operating
+# point. That is *linear in A*, which is what makes this a MILP rather than a
+# bilinear program.
 #
-#     e = Z (A - I) C
+# Z is the slack-referenced bus impedance -- zero on the slack's rows and
+# columns, inv(Ybus[ns,ns]) elsewhere -- because the slack holds its voltage and
+# absorbs whatever the merge pushes at it. Plain inv(Ybus) needs a shunt to
+# ground to exist at all, and differs by a uniform shift even when it does; it
+# is accepted via `Z` but is not the default. Z is dense where Ybus is sparse,
+# which buys conditioning: a near-zero-impedance jumper puts a near-infinite
+# entry in Ybus and a near-zero one in Z.
 #
-# which is *linear in A* -- the whole reason the problem is a MILP rather than a
-# bilinear program. This is single-shot: one model, one solve. No iterative
-# decomposition, no cutting planes, no big-M.
+# The annulus. The requirement is on voltage *magnitude*,
+# | |V_i + e_i| - |V_j| | <= E, which excludes a disk and so is nonconvex. Both
+# linearisations work on the aligned error Re(conj(V_i) e_i): `:R` against a
+# first-order bound on |V_i + e_i|, `:S` against the full secant of its square.
+# Neither carries the robustness margin of the source report -- that assumes one
+# merge at a time, and the worst-case sum over simultaneous merges collapses the
+# bound below its own lower limit. So `annulus_violation` re-checks the answer
+# against the untouched nonconvex constraint.
 #
-# Two things about Z are worth stating, because both look wrong at first glance.
-#
-# 1. Z is the *slack-referenced* bus impedance matrix: zero on the slack's rows
-#    and columns, and inv(Ybus[ns,ns]) on the rest. That is the exact model --
-#    the slack holds its voltage, so it absorbs whatever current the merge
-#    pushes at it and passes none of it on -- and it is what `annulus_violation`
-#    re-derives independently to check the answer.
-#
-#    Plain inv(Ybus) is a near miss rather than an equivalent, and it is worth
-#    being precise about the gap. It needs Ybus to be non-singular at all, which
-#    means a shunt to ground somewhere; a feeder assembled from branch data
-#    alone has none, every row of Ybus sums to zero, and inv returns entries
-#    around 1e12 that cancel to millivolt-scale garbage in the annulus rows
-#    instead of failing outright. Even when a grounding exists, solving
-#    (Ybus + G) x = r and the slack-referenced system give answers differing by
-#    a uniform shift c*1, and c vanishes only for particular r. On R100 -- whose
-#    grounding sits on the slack rows -- the two agreed to 1.2e-16 over a real
-#    assignment, with the slack row of e at 7e-17, so passing a precomputed
-#    inv(Ybus) as `Z` is reasonable there. It is not safe in general, which is
-#    why it is not the default.
-#
-#    What *is* structural, and what the model does rely on, is that the
-#    column-sum constraint makes A column-stochastic, so (A-I)C sums to zero
-#    over the node-phase rows of each phase: aggregation moves current between
-#    buses, it never creates any.
-#
-# 2. Z is dense and Ybus is sparse, so using Z looks like it throws away
-#    sparsity for nothing. It buys conditioning. A near-zero-impedance branch (a
-#    jumper or a closed switch) puts a near-*infinite* entry in Ybus -- on R100,
-#    |Ybus| spans 0.83 to 4.7e6, a condition number of 2.9e9 -- and that single
-#    outlier would set the conditioning of the whole constraint matrix. The same
-#    branch puts a near-*zero* entry in Z, whose magnitudes span only 4.5e-10 to
-#    7.1. Z is the better-behaved object precisely because it is the inverse.
-#
-# ---- The annulus ---------------------------------------------------------- #
-#
-# The accuracy requirement is on voltage *magnitude*: after the merge, bus i's
-# voltage must sit within Ē of the magnitude bus j had before it,
-#
-#     | |V_i + e_i| - |V_j| |  <=  Ē
-#
-# an annulus in the complex plane. It excludes a disk, so it is nonconvex and
-# cannot go to a MILP as written. Both linearisations below come from the
-# report "Linear and Robust Reformulations of a Complex-Magnitude (Annulus)
-# Constraint" and both work on the aligned error term Re(conj(V_i) e_i), which
-# is the component of the perturbation that actually moves the magnitude:
-#
-#   :R  tracks that term against a first-order bound on |V_i + e_i|
-#   :S  uses the full secant of |V_i + e_i|^2, so its terms are squared
-#
-# Neither carries the report's robustness margin (Q_i for R, E_i for S). That
-# margin assumes A activates one merge at a time; here A aggregates every
-# simultaneous merge, and the only bound available then is a worst-case sum over
-# every admissible column, which on realistic feeders exceeds |V_j| + Ē and
-# collapses the upper bound below the lower one -- making even the do-nothing
-# assignment infeasible. So the margins are set to zero. Approach R's lower
-# bound is exact regardless; the rest is a linearisation, not a certified bound,
-# which is why `annulus_violation` re-checks the answer against the untouched
-# nonconvex constraint.
-#
-# ---- On/off ---------------------------------------------------------------- #
-#
-# The annulus only applies to merges the solver actually selects, so each pair's
-# two inequalities hang off A[i,j] as JuMP indicator constraints. The research
-# code used big-M for this and had to size M from a worst-case deviation bound.
-# Indicators need no such constant: the solver enforces the implication directly,
-# there is no bound to get wrong, and nothing dilutes the LP relaxation. Gurobi
-# and HiGHS both support them.
+# On/off is by JuMP indicator constraints rather than big-M: no constant to size
+# wrong, and nothing dilutes the LP relaxation.
 # --------------------------------------------------------------------------- #
 
 """
@@ -147,42 +89,32 @@ end
 """
     solve_milp(net, V, Ē; kwargs...) -> MilpSolution
 
-Reduce `net` as far as possible while holding every merged bus within `Ē`
-per unit of its original voltage magnitude.
+Reduce `net` as far as possible while holding every merged bus within `Ē` per
+unit of its original voltage magnitude.
 
-`V` is the AC power-flow solution of the *unreduced* feeder, `nphase_rows(net)`
-x `nscenarios(net)`, and is the operating point the constant-current model
-linearises around. [`powerflow`](@ref) will produce one; it is passed in rather
-than computed here because the operating point is a modelling choice. A feeder
-with delta connections, ZIP loads or regulator taps should be solved in a tool
-that models them, and those voltages handed over directly. Check any `V` from
-elsewhere with [`powerflow_residual`](@ref) -- an operating point inconsistent
-with `Ybus` and `S` invalidates the error bound while still solving happily.
+`V` is the power-flow solution of the *unreduced* feeder, and the operating
+point the constant-current model linearises around. It is passed in rather than
+computed here because it is a modelling choice: a feeder with delta connections,
+ZIP loads or regulator taps belongs in a tool that models them. Check any `V`
+from elsewhere with [`powerflow_residual`](@ref) -- one inconsistent with `Ybus`
+and `S` invalidates the bound while still solving happily.
 
-Keyword arguments:
-
-- `scenarios`      which columns of `S`/`V` the budget is enforced over.
-                   Defaults to all of them, which is the honest default but
-                   scales the model linearly -- the papers enforce 2-3
-                   representative scenarios and validate against the rest.
-- `hops`   hop limit between a reduced bus and its super-node.
+- `scenarios`      columns of `S`/`V` to enforce over. Defaults to all, which
+                   scales the model linearly; the papers use 2-3 representative
+                   scenarios and validate against the rest.
+- `hops`           hop limit between a reduced bus and its super-node.
 - `direction`      `:any`, or `:downstream` to absorb only towards the slack.
 - `approach`       `:R` or `:S`, the two annulus linearisations (see header).
 - `max_reduction`  refuse to eliminate more than this fraction of buses.
-- `pin`            bus indices that must survive as super-nodes. Used to keep
-                   transformers, regulators and switches intact: pin both
-                   terminals and the device's admittance comes through the Schur
-                   complement unchanged, exactly. See `src/io/devices.jl` for
-                   why terminal-pinning is sufficient, and `read_devices` for
-                   getting the list out of a case directory.
-- `warm_start`     `:zero_injection` (default) solves a small exact subproblem
-                   first -- merging only buses that inject nothing, which
-                   perturbs no voltage at all -- and starts from that feasible
-                   point. `:identity` starts from no reduction. An assignment
-                   matrix is used as given.
+- `pin`            buses that must survive as super-nodes. Pin both terminals of
+                   a device and its admittance survives exactly -- see
+                   `src/io/devices.jl` and `read_devices`.
+- `warm_start`     `:zero_injection` (default) first merges only buses that
+                   inject nothing, which perturbs no voltage at all, and starts
+                   from that. `:identity`, or an assignment matrix, also work.
 - `prefer`, `verbose`, `time_limit`, `mip_gap` go to [`select_optimizer`](@ref).
 
-The returned assignment is *not* radialised -- Kron reduction meshes a radial
+The returned assignment is *not* radialised: Kron reduction meshes a radial
 feeder, and repairing that is a separate step. Follow with [`radialize`](@ref).
 """
 function solve_milp(net::Network, V::AbstractMatrix, Ē::Real;
@@ -337,25 +269,19 @@ end
 """
     _cluster_paths!(admissible, tree) -> Dict{CartesianIndex,Vector{Int}}
 
-Interior paths of every admissible pair, dropping the pairs that could only
-form a disconnected cluster.
+Interior paths of every admissible pair, dropping pairs that could only form a
+disconnected cluster.
 
-A cluster has to be a connected piece of the feeder, which means every bus `k`
-strictly between `i` and `j` must join `i` too. That is the `A[i,j] <= A[i,k]`
-constraint below. But on an unbalanced feeder `k` may be *ineligible* to join
-`i` -- two single-phase laterals on phase `a`, hanging off a common three-phase
-backbone bus, are admissible to each other under the subset rule while the
-backbone bus between them carries phases `i` does not have. Merging across it
-would leave a cluster in two disconnected pieces.
+A cluster must be connected, so every bus `k` strictly between `i` and `j` must
+join `i` too -- the `A[i,j] <= A[i,k]` constraint. On an unbalanced feeder `k`
+may be *ineligible*: two phase-`a` laterals off a common three-phase backbone
+bus are admissible to each other while the bus between them carries phases `i`
+lacks. The research code skipped those constraints, silently permitting a
+cluster in two pieces; here the pair is dropped instead. On R100 at `hops=5`
+that is 70 of 1198 off-diagonal pairs.
 
-The research code skipped those constraints (`admissibles[i,k] || continue`),
-which silently permits exactly that. Here the pair is dropped instead, which
-costs a little reduction and keeps every cluster connected. On R100 at
-`hops=5` this removes 70 of 1198 off-diagonal pairs.
-
-One pass suffices. If `(i,k)` is itself dropped for some bus `m` on its own
-interior path, then `m` also lies on the path from `i` to `j` -- paths in a tree
-compose -- so `(i,j)` is dropped in the same sweep.
+One pass suffices: paths in a tree compose, so if `(i,k)` is dropped for some
+`m` on its interior path, `m` lies on `i`-to-`j` too.
 """
 function _cluster_paths!(admissible::BitMatrix, tree::RadialTree)
     _prune_disconnected!(admissible, tree)

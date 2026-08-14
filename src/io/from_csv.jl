@@ -1,33 +1,23 @@
 # --------------------------------------------------------------------------- #
-# The canonical public input format: three CSVs describing the feeder in terms
-# of buses, lines and loads. This is the format the released benchmark cases
-# ship in, and the one an OpenDSS or MATPOWER case should be converted into.
-#
-# Why line parameters rather than a raw Ybus: a Ybus cannot be inverted back to
-# per-line r/x once shunts, transformers or regulators are present, so a
-# Ybus-only pipeline can only ever emit a Ybus. Carrying branch data through
-# means a reduced network can be exported as a feeder someone else's tool can
-# actually open. See from_ybus.jl for the fast path when branch data genuinely
-# is not available.
+# The canonical public input format: three CSVs describing buses, lines and
+# loads. Line parameters rather than a raw Ybus, because a Ybus cannot be
+# inverted back to per-line r/x once shunts or transformers are present -- so a
+# Ybus-only pipeline can only ever emit a Ybus. See from_ybus.jl for the fast
+# path when branch data genuinely is not available.
 #
 #   bus.csv     bus_id, phases, base_kv, type
-#                 phases  -- string over {a,b,c}, e.g. "abc", "a", "ac"
-#                 type    -- "slack" (exactly one) or "pq"
+#                 phases over {a,b,c}, e.g. "abc"; exactly one type = "slack"
 #
 #   branch.csv  from_bus, to_bus, phases, <impedance columns>
-#                 single-phase form: r, x, b
-#                 three-phase form:  r_aa, r_ab, r_ac, r_bb, r_bc, r_cc
-#                                    x_aa ... x_cc,  b_aa ... b_cc
-#                 The r/x/b matrices are symmetric; only the upper triangle is
-#                 listed. Units are per unit on the system base.
+#                 single-phase: r, x, b
+#                 three-phase:  r_aa..r_cc, x_aa..x_cc, b_aa..b_cc, upper
+#                 triangle only (the matrices are symmetric), per unit
 #
 #   load.csv    bus_id, phase, scenario, p_pu, q_pu
-#                 One row per (bus, phase, scenario). Buses or phases absent
-#                 from the file draw zero. `scenario` is any label; columns of
-#                 S come out sorted by first appearance.
+#                 absent buses/phases draw zero; `scenario` is any label, and
+#                 columns of S come out sorted by first appearance
 #
-# Sign convention: p_pu/q_pu are *injections* (generation positive, load
-# negative), matching the papers' Ihat = Y Vhat.
+# p_pu/q_pu are *injections* -- generation positive, load negative.
 # --------------------------------------------------------------------------- #
 
 const PHASE_SYMBOLS = (:a, :b, :c)

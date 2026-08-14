@@ -1,35 +1,21 @@
 # --------------------------------------------------------------------------- #
 # Exhaustive search at q = 1 -- Algorithm 1 of the PSCC/EPSR three-phase paper.
 #
-# Where the MILP asks "what is the best assignment?" and answers it exactly, the
-# search asks "what is the best single merge available right now?" and repeats.
-# One node is eliminated per iteration; at each iteration every feasible pair
-# (s, r) is scored independently, the best is taken, and the graph is updated.
-# That is a greedy heuristic -- it does not return the optimum -- but each step
-# is embarrassingly parallel and needs no solver, so it keeps going on feeders
-# where the MILP runs out of time or memory.
+# Where the MILP answers "what is the best assignment?" exactly, the search asks
+# "what is the best single merge available now?" and repeats. One bus is
+# eliminated per iteration; every feasible pair (s, r) is scored, the best taken,
+# the graph updated. Greedy, so not optimal -- but each step is embarrassingly
+# parallel and needs no solver, which keeps it going where the MILP runs out.
 #
-# The budget is the MILP's, exactly, so that "within Ē" means one thing whichever
-# backend produced the answer:
+# The budget is the MILP's, exactly, so "within E" means one thing whichever
+# backend produced the answer: C = conj(S ./ V), e = Z (A - I) C with Z
+# slack-referenced, deviation | |V_i + e_i| - |V_j| |. Scoring against Y directly
+# -- what the research code does, on a feeder it has already grounded -- lets the
+# slack float, understating the error until the search appears to beat the MILP.
 #
-#     C = conj(S ./ V̂)                constant current at the operating point
-#     e = Z (A − I) C                 perturbation, Z slack-referenced
-#     deviation = | |V_i + e_i| − |V_j| |   for every bus j represented by i
-#
-# and `annulus_violation` re-derives the same quantity independently. Scoring
-# against Y directly instead -- which is what the research code does, on a feeder
-# it has already grounded -- lets the slack float. That understates the error, so
-# the search merges past the budget and appears to beat the MILP; it does not.
-#
-# Two costs are avoided per candidate, and they are what make this tractable:
-#
-#   - The candidates of an iteration differ from each other in rank one, so with
-#     Z formed once a candidate costs a few scaled column differences rather than
-#     a solve. See gpu.jl, which is where the arithmetic lives.
-#   - The aggregated current and the "who owns whose voltage" map are carried
-#     between iterations and patched per candidate, rather than rebuilt from a
-#     fresh `expand_assignment`.
-#
+# Per-candidate cost is an axpy, not a solve: candidates within an iteration
+# differ in rank one, so with Z formed once the update is a scaled column
+# difference. See gpu.jl, where that arithmetic lives.
 # --------------------------------------------------------------------------- #
 
 """
@@ -78,24 +64,17 @@ end
 Reduce `net` by greedy exhaustive search, holding every bus within `Ē` of its
 original voltage magnitude on the selected scenarios.
 
-Keyword arguments:
-
-- `scenarios`      columns of `V` to enforce the budget over. Defaults to all.
-- `objective`      `:max` scores a candidate by its worst error (Eq. 15 of the
-                   paper), `:sum` by the total. `:max` is the default and is
-                   what the budget itself is stated in.
+- `scenarios`      columns of `V` to enforce the budget over. Default: all.
+- `objective`      `:max` scores by worst error (Eq. 15), `:sum` by the total.
 - `radial`         only eliminate buses of current degree <= 2, which keeps the
-                   reduced network radial by construction: eliminating a degree-d
-                   bus leaves a d-clique, and `d <= 2` leaves a single edge. A
-                   bus becomes eligible later as its neighbours are absorbed.
+                   reduced network radial by construction. A bus becomes
+                   eligible later as its neighbours are absorbed.
 - `upstream`       only merge towards the slack, by BFS depth.
 - `max_reduction`  stop once this fraction of buses is gone.
-- `pin`            buses that must survive; they are never offered as the bus to
-                   eliminate. Used to keep transformers and switches intact --
-                   see `src/io/devices.jl`.
-- `screen`         drop candidates that provably cannot meet the bound before
-                   solving anything. Rigorous -- see [`_screen_pairs`](@ref).
-- `backend`        `:cpu` / `:zbus` (host) or `:gpu` (device); same arithmetic.
+- `pin`            buses that must survive; never offered for elimination.
+                   Keeps equipment intact -- see `src/io/devices.jl`.
+- `screen`         drop provably-infeasible candidates first (rigorous).
+- `backend`        `:cpu` / `:zbus` (host) or `:gpu`; same arithmetic.
 - `batch`          candidates scored per pass.
 - `time_limit`     seconds, checked between iterations.
 """

@@ -1,42 +1,24 @@
 # --------------------------------------------------------------------------- #
 # Write a reduced network back out as a MATPOWER case.
 #
-# A reduction is only useful to someone else if they can open it in the tool
-# they already use. Opti-KRON produces a Kron-reduced admittance matrix and an
-# assignment map; MATPOWER wants buses, branches and loads. This turns one into
-# the other.
+# Kron reduction returns Y_red, not a branch list, but for a network without
+# mutual coupling the map back is exact. Off the diagonal an admittance matrix
+# holds the negated branch admittance, and whatever a row does not spend on its
+# branches is a shunt to ground:
 #
-# ---- Recovering branches from an admittance matrix ------------------------ #
+#     z_ij      = -1 / Y_red[i,j]
+#     y_shunt_i = sum_j Y_red[i,j]        (the row sum)
 #
-# Kron reduction returns Y_red, not a branch list, and the two are not the same
-# kind of object: Y_red is what the kept buses *see*, with the eliminated ones
-# folded in. But for a network without mutual coupling the map back is exact and
-# elementary. Off the diagonal, an admittance matrix holds the negated branch
-# admittance,
+# which is where the eliminated buses' shunts, and the equivalents created by
+# eliminating them, end up. Together these reproduce Y_red exactly.
 #
-#     Y[i,j] = -y_ij        so    z_ij = -1 / Y_red[i,j]
+# Two things to expect: Kron reduction can produce *negative* resistances (an
+# equivalent branch is not a physical conductor, and MATPOWER solves it without
+# complaint), and a reduced network is denser than its source unless radialized
+# first -- which is normally what you want to export.
 #
-# and whatever a row does not spend on its branches is a shunt to ground,
-#
-#     y_shunt_i = sum_j Y_red[i,j]      (the row sum)
-#
-# which is where the eliminated buses' own shunts, and the equivalent shunts
-# created by eliminating them, end up. Together those reproduce Y_red exactly,
-# so a power flow on the exported case and one on the reduced network are the
-# same computation.
-#
-# Two things worth expecting in the output. Kron reduction can produce
-# *negative* resistances -- an equivalent branch is not a physical conductor,
-# and nothing requires it to look like one. MATPOWER solves such a case without
-# complaint. And a reduced network is denser than the feeder it came from
-# (Lemma 1), unless it was radialized first, which is normally what you want to
-# export.
-#
-# ---- What cannot be exported ---------------------------------------------- #
-#
-# MATPOWER is a positive-sequence format, so a three-phase feeder has nowhere to
-# go in it. Rather than silently collapsing phases into something that is not
-# the network, this refuses. Three-phase reductions stay in the CSV format.
+# Three-phase feeders are refused. MATPOWER is positive-sequence, and collapsing
+# phases would emit something that is not the network. Those stay in CSV.
 # --------------------------------------------------------------------------- #
 
 """

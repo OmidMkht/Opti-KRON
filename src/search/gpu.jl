@@ -1,28 +1,21 @@
 # --------------------------------------------------------------------------- #
-# The Zbus reformulation, and the GPU backend built on it.
+# The Zbus rank-1 reformulation, and the GPU backend built on it.
 #
-# The candidates of one iteration differ from each other only in *rank one*.
-# Moving bus r's aggregated current onto s changes `(A − I)C` by
-# `Cagg[r_p]·(e_{s_p} − e_{r_p})` per phase, so with the slack-referenced
-# `Z` in hand
+# Candidates within an iteration differ only in rank one. Moving bus r's
+# aggregated current onto s changes (A - I)C by Cagg[r_p]*(e_s_p - e_r_p) per
+# phase, so with the slack-referenced Z in hand
 #
-#     V^c = V_cur + Σ_p  Cagg[r_p] · ( Z[:, s_p] − Z[:, r_p] )
+#     V^c = V_cur + sum_p  Cagg[r_p] * ( Z[:, s_p] - Z[:, r_p] )
 #
-# and a candidate costs a few scaled column differences instead of a solve. `Z`
-# is formed once; per-candidate work is an axpy.
+# and a candidate costs a few scaled column differences instead of a solve.
 #
-# It is also what makes the GPU worthwhile. Scoring is then a wide, shallow,
-# perfectly parallel sweep over (row, candidate, scenario) -- exactly the shape a
-# GPU wants, and exactly the shape a sparse solve is not. Memory does not grow
-# with the scenario count either, which is what the reference implementation was
-# reaching for.
+# That is also what makes the GPU worthwhile: scoring becomes a wide, shallow
+# sweep over (row, candidate, scenario), and memory does not grow with the
+# scenario count. The cost is Z -- dense, nphase_rows^2, 229 MB on ieee8500.
 #
-# The cost is `Z`: dense, `nphase_rows^2`. 4 MB on R300, 229 MB on ieee8500.
-#
-# The context below is generic over its array type, so the identical arithmetic
-# runs on `Matrix` or `CuMatrix`. That is deliberate: it means the GPU path can
-# be validated against the CPU path running the same formulas, and any
-# disagreement is hardware or precision, never a second implementation drifting.
+# The context is generic over its array type, so identical arithmetic runs on
+# Matrix or CuMatrix. A host/device disagreement is then hardware or precision,
+# never a second implementation drifting.
 # --------------------------------------------------------------------------- #
 
 const CUDA_MODULE = Ref{Union{Nothing,Module}}(nothing)

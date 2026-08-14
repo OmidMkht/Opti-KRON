@@ -1,34 +1,25 @@
 # --------------------------------------------------------------------------- #
 # Radiality as a constraint, rather than a repair.
 #
-# `radialize` in src/core fixes a meshed reduction afterwards, by reinserting
-# buses. That is the journal paper's Theorem 1 and it is minimal *for the
-# assignment it is given* -- but the assignment was chosen without knowing it
-# would have to be repaired, so the pair (reduce, then repair) is not jointly
-# optimal. Enforcing radiality inside the MILP instead lets the solver trade a
-# merge it would have to undo for a different one it can keep.
+# `radialize` in src/core fixes a meshed reduction afterwards (Theorem 1), and
+# is minimal *for the assignment it is given* -- but that assignment was chosen
+# without knowing it would need repairing, so the pair is not jointly optimal.
+# Enforcing radiality inside the model lets the solver trade a merge it would
+# have to undo for one it can keep.
 #
-# ---- Where the meshing comes from ----------------------------------------- #
-#
-# Eliminating a bus of degree d makes its d neighbours a clique (Lemma 1). On a
-# tree the only buses with degree >= 3 are branching nodes, so a reduced network
-# is meshed exactly when some branching node is eliminated while two or more of
-# its branches still hold super-nodes -- the fill-in then ties those branches
-# together, and a cycle appears.
-#
-# That is the whole condition, and it is expressible in the assignment diagonal
-# alone. For a branching node j with m child branches, let d[b] indicate that
-# branch b keeps at least one super-node:
+# Eliminating a bus of degree d makes its neighbours a clique (Lemma 1). On a
+# tree only branching nodes have degree >= 3, so a reduced network is meshed
+# exactly when a branching node is eliminated while two or more of its branches
+# still hold super-nodes. That is expressible in the assignment diagonal alone:
+# for branching node j with m child branches, and d[b] indicating branch b keeps
+# a super-node,
 #
 #     sum_b d[b] <= 1 + (m - 1) * A[j,j]
 #
-# If j survives (A[j,j] = 1) the bound is m and nothing is restricted -- a kept
-# branching node introduces no fill-in. If j is eliminated the bound is 1: at
-# most one of its branches may keep anything, so no fill-in edge can form.
-#
-# `d[b]` needs no integrality. It is squeezed from both sides -- above every
-# member's A[k,k], and below by their sum -- so at an integral A it is forced to
-# the right value, and leaving it continuous keeps the branching set small.
+# If j survives the bound is m and nothing is restricted; if j is eliminated the
+# bound is 1, so no fill-in edge can form. `d[b]` needs no integrality -- it is
+# squeezed from above by every member's A[k,k] and from below by their sum, so
+# an integral A forces it, and leaving it continuous keeps the model small.
 # --------------------------------------------------------------------------- #
 
 """

@@ -26,48 +26,30 @@ struct Reduction
 end
 
 """
-    optikron(case; Ē, scenarios, hops, radiality, backend, time_limit, V) -> Reduction
+    optikron(case; Ē, scenarios, hops, radiality, backend, preserve, V) -> Reduction
 
 Reduce a feeder, start to finish.
 
-`case` is a directory under `data/`, a path to one, or a `Network` already in
-hand. `V` defaults to [`powerflow`](@ref); pass your own operating point if your
-feeder needs modelling this package's power flow does not do.
+`case` is a directory under `data/`, a path to one, or a `Network` in hand. `V`
+defaults to [`powerflow`](@ref); pass your own if the feeder needs modelling this
+package's power flow does not do. `directory` says where a pre-loaded `Network`
+came from, so its shipped `voltage.csv` and device tables are still found.
 
-`radiality` is `:in_model` (default: never choose a meshing assignment in the
-first place), `:post` (reduce, then reinsert the minimal repair set -- the
-journal paper's Theorem 1), or `:none`.
+`radiality` is `:in_model` (default), `:post` (reinsert the minimal repair set,
+Theorem 1) or `:none`. `:in_model` is the default because `:post` can leave the
+budget behind: reinserting a bus changes `(A-I)C` and so changes `e`, and on
+case533mt at Ē=0.001 the worst violation moved from -1.4e-06 to +3.4e-05.
 
-`:in_model` is the default because `:post` can leave the error budget behind.
-Reinserting a bus takes it out of its cluster, which changes `(A-I)C` and so
-changes `e`; usually that helps, but on case533mt at Ē=0.001 the worst violation
-moved from -1.4e-06 to +3.4e-05, i.e. outside the budget the MILP had certified.
-Enforcing radiality inside the model has nothing to perturb afterwards, so the
-guarantee still holds on the assignment you actually get.
+`backend` is `:milp` (exact, certified optimum) or `:search_cpu` / `:search_gpu`
+(greedy, no hop limit, scales further). `solver` forces `:gurobi` / `:highs`
+rather than `:auto` -- worth doing for a benchmark, since a timing from a
+solver you did not expect is worse than no timing.
 
-`solver` is `:auto` (Gurobi when licensed, else HiGHS), or force one with
-`:gurobi` / `:highs`. Forcing matters for a benchmark: a timing that quietly
-came from a different solver than you thought is worse than no timing.
-
-`directory` says where the case came from when `case` is an already-loaded
-`Network`. Shipped voltages and device tables are files, not fields of
-`Network`, so without it they are silently skipped.
-
-`preserve` decides which equipment survives the reduction intact, when the case
-ships `transformer.csv` / `switch.csv`:
-
-- `:devices` (default) keeps transformers, regulators and switches. Both
-  terminals of each are pinned, which makes the device's admittance come
-  through the Schur complement bit-for-bit unchanged -- see `src/io/devices.jl`.
-- `:transformers` keeps only the transformers, merging across closed switches.
-  A closed switch is a near-zero-impedance jumper whose ends are electrically
-  one node, so merging it is nearly free and removes a genuine numerical
-  hazard. Use this unless the switch has to stay operable.
-- `:none` pins nothing.
-
-Preserving equipment costs reduction, and the loading through it still moves --
-the assignment relocates injections, and the error budget is what bounds that.
-It is the *model* that is preserved exactly, not the power flow through it.
+`preserve` keeps equipment intact where the case ships `transformer.csv` /
+`switch.csv`: `:devices` (default) pins transformers, regulators and switches;
+`:transformers` merges across closed switches, which is nearly free and removes
+a numerical hazard; `:none` pins nothing. The device *model* is preserved
+exactly; the loading through it still moves, bounded by the budget.
 """
 function optikron(case;
     Ē::Real=0.01,

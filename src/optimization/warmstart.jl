@@ -1,39 +1,23 @@
 # --------------------------------------------------------------------------- #
 # Zero-injection warm start.
 #
-# Absorbing a bus that injects nothing perturbs nothing. Its current is
-# C = conj(S ./ V) = 0, so moving it leaves (A - I)C untouched and the reduction
-# error is *exactly* zero:
+# Absorbing a bus that injects nothing perturbs nothing: C = conj(S ./ V) = 0,
+# so (A - I)C is untouched and e = Z (A - I) C is *exactly* zero. What remains
+# is only the nominal gap between the two voltages, which does not depend on the
+# assignment -- so the error model collapses to one linear constraint per pair,
 #
-#     e = Z (A - I) C  ==  0
+#     c_ij * A[i,j] <= Ē,   c_ij = max over phases/scenarios of | |V_i| - |V_j| |
 #
-# What remains is only the nominal gap between the super-node's voltage and the
-# absorbed bus's own. That gap is a constant -- it does not depend on the
-# assignment -- so the whole error model collapses to one linear constraint per
-# pair:
+# with every structural constraint unchanged. That little MILP needs no error
+# machinery, no indicators and no dense Z, and returns a genuinely feasible
+# point of the full problem.
 #
-#     c_ij * A[i,j] <= Ē,    c_ij = max over phases and scenarios of
-#                                      | |V_i| - |V_j| |
-#
-# Every other constraint (column sums, A[i,j] <= A[i,i], contiguity, radiality)
-# is the same as the real model. So this little MILP -- no error machinery, no
-# indicator constraints, no dense Z -- returns a genuinely *feasible* point of
-# the full problem, and a far better starting point than the identity.
-#
-# On feeders where most buses are junctions rather than loads it does most of the
-# work before the hard solve begins.
-#
-# ---- The sequencing rule -------------------------------------------------- #
-#
-# The pairs used here must be a subset of the pairs the *target* solve will have
-# binaries for. Pick a representative from outside that set and the target has no
-# variable to put it in: the column silently reads back as all-zero and the whole
-# start is rejected as infeasible, by a wide margin, for a reason that looks
-# nothing like its cause.
-#
-# That is why this takes `admissible` as an argument and never derives it. In
-# `solve_milp` it is called *after* screening, on the screened mask, so the rule
-# holds by construction and a caller cannot get it wrong.
+# Sequencing rule: the pairs used here must be a subset of those the *target*
+# solve has binaries for. Pick a representative from outside that set and the
+# target has no variable to hold it, so the start reads back all-zero and is
+# rejected as infeasible for a reason that looks nothing like its cause. Hence
+# `admissible` is an argument, never derived -- `solve_milp` passes the screened
+# mask, so the rule holds by construction.
 # --------------------------------------------------------------------------- #
 
 """

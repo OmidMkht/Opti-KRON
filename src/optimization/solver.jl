@@ -22,24 +22,16 @@ const _GUROBI_MODULE = Ref{Any}(nothing)
 """
     load_gurobi!() -> Bool
 
-Bring Gurobi's methods into scope, without touching a licence. Whether the
-package is *usable* is [`gurobi_available`](@ref); this only answers whether it
-is installed.
+Bring Gurobi's methods into scope without touching a licence. Whether it is
+*usable* is [`gurobi_available`](@ref); this answers only whether it is
+installed.
 
-This runs from `__init__`, and it has to, for a reason that is pure Julia
-mechanics rather than anything about solvers. `Base.require` defines new
-methods, and newly defined methods are invisible to any call chain already
-running -- the world-age rule. So if the same dynamic call that loads Gurobi
-also builds a model with it, JuMP hands the fresh `Gurobi.Optimizer` to MOI,
-MOI calls `is_empty` on it, and that dispatch fails with
-
-    MethodError: no method matching is_empty(::Gurobi.Optimizer)
-
-which is exactly what a first call to `solve_milp` used to do on a licensed
-machine: load the package and use it inside one call, never returning to top
-level in between. Loading here instead means the world age has advanced long
-before any user code runs. The licence probe stays lazy -- that is the slow part
-and the part that prints a banner.
+Must run from `__init__`, for pure world-age reasons: `Base.require` defines new
+methods, and those are invisible to any call chain already running. Load and use
+Gurobi inside one dynamic call and MOI's `is_empty` dispatch fails with
+`MethodError: no method matching is_empty(::Gurobi.Optimizer)` -- which is
+exactly what a first `solve_milp` used to do on a licensed machine. The licence
+probe stays lazy; that is the slow part.
 """
 function load_gurobi!()
     _GUROBI_MODULE[] === nothing || return true
