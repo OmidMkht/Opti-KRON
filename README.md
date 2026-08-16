@@ -159,7 +159,28 @@ their transformer, regulator, phase-shift, switch and capacitor tables. See
 Worked reductions live in
 [`reduced_networks/`](reduced_networks) — two per feeder, each recording the
 error threshold, hop limit and scenarios it was produced under, and each verified
-against the exact nonconvex annulus.
+against the exact nonconvex annulus. The feeders that came from OpenDSS also
+carry a `dss/` folder holding the reduction as a solved OpenDSS circuit.
+
+## OpenDSS
+
+[`converter/`](converter/) is the bridge, in both directions: it exported the
+three-phase feeders in `data/` from their OpenDSS originals, and it turns a
+reduction back into a circuit you can open in OpenDSS.
+
+```bash
+python -m pip install -r converter/requirements.txt
+python converter/build_reduced_dss.py          # rebuild every dss/ folder
+```
+
+Each generated snapshot is solved and compared with the original feeder at every
+surviving super-node. That round trip is a **harder test than the certified
+budget** — the budget holds a constant-current linearisation, OpenDSS re-solves
+with constant-power loads — and on `ieee37`, the one all-delta feeder, the solved
+error is 8e-02 against an `Ē` of 3e-03. Those numbers are published per
+reduction rather than smoothed over; see
+[`converter/README.md`](converter/README.md) for the full table and why the
+gradient runs the way it does.
 
 ## Roadmap
 
@@ -180,6 +201,8 @@ against the exact nonconvex annulus.
       reduction, selectable per kind
 - [x] Re-export the IEEE cases at ~14 decimals, then regenerate their reduced
       examples
+- [x] OpenDSS bridge both ways — export a feeder to the CSV format, and emit a
+      reduction back as a solved OpenDSS circuit with per-node validation
 
 ## Citation
 

@@ -51,9 +51,18 @@ its original `.m` beside the CSVs so the conversion can be checked.
 | `case1197` | Moses et al., hybrid MV/LV: a 30-bus 22 kV network with 22 copies of a 415 V residential LV network (Western Power, Australia). |
 
 Five three-phase feeders from the IEEE PES Distribution Test Feeder Working Group
-and the European LV test case. Note that **`ieee8500` does not hold 8500 buses**:
-the name counts nodes including neutral and secondary service conductors, while
-this package carries `a`/`b`/`c` only.
+and the European LV test case, exported from their OpenDSS originals with
+[`converter/`](../converter), which keeps those originals in
+`converter/opendss_cases/` so the export reproduces. Note that **`ieee8500` does
+not hold 8500 buses**: the name counts nodes including neutral and secondary
+service conductors, while this package carries `a`/`b`/`c` only.
+
+Their `load.csv` is not read from OpenDSS load objects — it is back-computed as
+`S = V ⊙ conj(Y V)` from the rounded `Y` and `V`, which is what makes each
+dataset satisfy `YV = I` to ~7e-16 and is recorded in `validation.json`. The
+side effect is that an unloaded node carries round-off near `1e-15` rather than a
+hard zero, so treat "no load" as a relative threshold; see
+[`converter/README.md`](../converter/README.md).
 
 Three conversion details worth knowing:
 
