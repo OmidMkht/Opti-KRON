@@ -2,8 +2,8 @@
 
 Optimal Kron-based network reduction for distribution feeders — single-phase and unbalanced three-phase.
 
-> **Status: pre-release.** The input layer is in place and tested. The solvers are
-> being ported from the research code. See [Roadmap](#roadmap) for what works today.
+> **Status: pre-release** (`v0.1.0-dev`). Every item on the [Roadmap](#roadmap) is
+> implemented and tested.
 
 ## What problem does Opti-KRON solve?
 
@@ -33,7 +33,7 @@ and device now lives at.
 
 The exhaustive search operates directly on complex values, so it evaluates the exact
 voltage-magnitude error the MILP can only approximate through rectangular decomposition.
-On a 1000-node feeder the GPU version runs ~16× faster than CPU.
+The GPU version runs ~25× faster than CPU on a 907-bus feeder.
 
 ## Solvers
 

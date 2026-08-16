@@ -2,7 +2,7 @@
 # --------------------------------------------------------------------------- #
 # Opti-KRON runner.
 #
-#     julia --project=. run_optikron.jl              # the options below
+#     julia --project=. run_optikron.jl              # reduce R100 with the defaults
 #     julia --project=. run_optikron.jl ieee123      # another case
 #     julia --project=. run_optikron.jl ieee123 0.01 # ...and another Ē
 #     julia --project=. run_optikron.jl --list       # what cases are installed
@@ -12,7 +12,7 @@
 # --------------------------------------------------------------------------- #
 
 # ------------------------------- OPTIONS ----------------------------------- #
-case      = "ieee8500"   # any case in data/ (see --list), or a path to a folder
+case      = "R100"       # any case in data/ (see --list), or a path to a folder
 Ē         = 0.001       # allowed voltage-magnitude error, per unit
 scenarios = []          # loadings to enforce it on ([] = all)
 hops      = 5          # how far a bus may travel to its super-node
