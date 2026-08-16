@@ -1,0 +1,5 @@
+equipment_class,equipment_id,terminal,original_bus,reduced_bus
+transformer,tr1,from,sourcebus,sourcebus
+transformer,tr1,to,1,1
+phase_shift,tr1,from,sourcebus,sourcebus
+phase_shift,tr1,to,1,1

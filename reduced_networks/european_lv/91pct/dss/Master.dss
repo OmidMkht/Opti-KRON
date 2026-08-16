@@ -1,0 +1,9 @@
+clear
+new Circuit.Reduced basekv=11 phases=3 bus1=sourcebus frequency=50
+redirect Source.dss
+redirect Transformers.dss
+redirect Branches.dss
+redirect Shunts.dss
+redirect Loads.dss
+set controlmode=off
+solve mode=snapshot

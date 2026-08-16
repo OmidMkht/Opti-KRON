@@ -1,0 +1,9 @@
+! Preserved physical transformers and solved regulator taps
+new Transformer.reg1a phases=3 windings=2 buses=[150, 150r, ] conns=[wye, wye, ] kvs=[4.16, 4.16, ] kvas=[5000, 5000, ] taps=[1, 1.0375, ] %rs=[5E-6, 5E-6, ] xhl=0.001 xht=35 xlt=30 %noloadloss=0 %imag=0 ppm_antifloat=0
+new Transformer.xfm1 phases=3 windings=2 buses=[61s, 610, ] conns=[delta, delta, ] kvs=[4.16, 0.48, ] kvas=[150, 150, ] taps=[1, 1, ] %rs=[0.635, 0.635, ] xhl=2.72 xht=35 xlt=30 %noloadloss=0 %imag=0 ppm_antifloat=1
+new Transformer.reg2a phases=1 windings=2 buses=[9.1, 9r.1, ] conns=[wye, wye, ] kvs=[2.402, 2.402, ] kvas=[2000, 2000, ] taps=[1, 1, ] %rs=[5E-6, 5E-6, ] xhl=0.01 xht=35 xlt=30 %noloadloss=0 %imag=0 ppm_antifloat=0
+new Transformer.reg3a phases=1 windings=2 buses=[25.1, 25r.1, ] conns=[wye, wye, ] kvs=[2.402, 2.402, ] kvas=[2000, 2000, ] taps=[1, 1.0125, ] %rs=[5E-6, 5E-6, ] xhl=0.01 xht=35 xlt=30 %noloadloss=0 %imag=0 ppm_antifloat=0
+new Transformer.reg4a phases=1 windings=2 buses=[160.1, 160r.1, ] conns=[wye, wye, ] kvs=[2.402, 2.402, ] kvas=[2000, 2000, ] taps=[1, 1.0625, ] %rs=[5E-6, 5E-6, ] xhl=0.01 xht=35 xlt=30 %noloadloss=0 %imag=0 ppm_antifloat=0
+new Transformer.reg3c phases=1 windings=2 buses=[25.3, 25r.3, ] conns=[wye, wye, ] kvs=[2.402, 2.402, ] kvas=[2000, 2000, ] taps=[1, 1, ] %rs=[5E-6, 5E-6, ] xhl=0.01 xht=35 xlt=30 %noloadloss=0 %imag=0 ppm_antifloat=0
+new Transformer.reg4b phases=1 windings=2 buses=[160.2, 160r.2, ] conns=[wye, wye, ] kvs=[2.402, 2.402, ] kvas=[2000, 2000, ] taps=[1, 1.025, ] %rs=[5E-6, 5E-6, ] xhl=0.01 xht=35 xlt=30 %noloadloss=0 %imag=0 ppm_antifloat=0
+new Transformer.reg4c phases=1 windings=2 buses=[160.3, 160r.3, ] conns=[wye, wye, ] kvs=[2.402, 2.402, ] kvas=[2000, 2000, ] taps=[1, 1.0375, ] %rs=[5E-6, 5E-6, ] xhl=0.01 xht=35 xlt=30 %noloadloss=0 %imag=0 ppm_antifloat=0

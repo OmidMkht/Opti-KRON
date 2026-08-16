@@ -7,6 +7,7 @@
 | | |
 |---|---|
 | Error threshold | `Ē = 0.003` per unit. |
+| Backend | MILP, proven optimal (`:milp`) |
 | Hops | `10` |
 | Scenarios enforced | 67 and 91 of 168 — peak and minimum hour |
 | Radiality | enforced in the model (`:in_model`) |

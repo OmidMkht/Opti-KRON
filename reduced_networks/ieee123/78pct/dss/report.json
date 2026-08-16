@@ -1,0 +1,17 @@
+{
+  "full_bus_count": 130,
+  "reduced_bus_count": 29,
+  "reduced_phase_node_count": 80,
+  "radial_edge_count": 28,
+  "preserved_transformer_count": 8,
+  "equipment_mapping_row_count": 50,
+  "sbase_mva": 5.0,
+  "aggregation_max_abs_power_error_pu": 0.0,
+  "target_vs_full_max_complex_voltage_error_pu": 0.0,
+  "max_voltage_magnitude_error_pu": 0.005201410582361454,
+  "max_voltage_magnitude_error_bus": "83",
+  "max_voltage_magnitude_error_phase": "b",
+  "max_complex_voltage_error_pu": 0.005994572904913313,
+  "max_abs_synthesized_ybus_error_pu": 0.00015295456617737477,
+  "relative_synthesized_ybus_error": 1.3249339373102918e-10
+}

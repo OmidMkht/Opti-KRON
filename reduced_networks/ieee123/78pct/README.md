@@ -7,6 +7,7 @@
 | | |
 |---|---|
 | Error threshold | `Ē = 0.006` per unit. |
+| Backend | MILP, proven optimal (`:milp`) |
 | Hops | `10` |
 | Scenarios enforced | all 1 — the case carries a single loading |
 | Radiality | enforced in the model (`:in_model`) |
@@ -24,10 +25,24 @@ Re-checked against the exact nonconvex annulus on the untouched sparse
 
 - Enforced scenarios: worst violation `-1.11e-04` — inside budget.
 
+## Solved as OpenDSS
+
+`dss/` is this reduction as a self-contained OpenDSS circuit,
+rebuilt by `converter/build_reduced_dss.py` and solved.
+
+- Power aggregation error: `0.0` — exact.
+- Synthesized Kron `Ybus` vs this reduction's: `1.3249339373102918e-10` relative.
+- **Solved voltage error against the original: `5.20e-03` pu.**
+
+  Inside the certified budget even under a full constant-power re-solve.
+
+  Per-node detail is in `dss/validation.csv`.
+
 ## Files
 
 - `assignment.csv` — the reduction map, `bus_id → super_node`
 - `bus.csv` — surviving buses and their phasing
+- `dss` — the same reduction as a solved OpenDSS circuit
 - `load.csv` — injections after each eliminated bus hands its load over
 - `voltage.csv` — the operating point at the surviving buses
 - `ybus.csv` — the Schur complement
