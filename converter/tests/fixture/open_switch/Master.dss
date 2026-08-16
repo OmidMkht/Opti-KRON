@@ -1,0 +1,10 @@
+clear
+new Circuit.OpenSwitch phases=3 bus1=source.1.2.3 basekv=12.47 pu=1 frequency=60
+new Line.l1 bus1=source.1.2.3 bus2=b1.1.2.3 phases=3 r1=0.3 x1=0.4 length=1
+new Line.l2 bus1=b1.1.2.3 bus2=b3.1.2.3 phases=3 r1=0.3 x1=0.4 length=1
+new Line.sw_open bus1=b1.1.2.3 bus2=b3_open.1.2.3 phases=3 switch=yes
+new Load.at_b3 phases=3 bus1=b3.1.2.3 conn=wye kv=7.2 kw=100 kvar=30 model=1
+set voltagebases=[12.47]
+calcvoltagebases
+set controlmode=off
+solve mode=snapshot

@@ -1,0 +1,16 @@
+clear
+new Circuit.Full phases=3 bus1=source.1.2.3 basekv=12.47 pu=1 angle=0 frequency=60
+new LineCode.main nphases=3 units=km
+~ rmatrix=[0.30 | 0.05 0.31 | 0.04 0.05 0.32]
+~ xmatrix=[0.40 | 0.10 0.41 | 0.08 0.10 0.42]
+~ cmatrix=[3.0 | -0.4 3.1 | -0.3 -0.4 3.2]
+new Line.l1 bus1=source.1.2.3 bus2=b1.1.2.3 phases=3 linecode=main length=0.8 units=km
+new Line.l2 bus1=b1.1.2.3 bus2=b2.1.2.3 phases=3 linecode=main length=1.1 units=km
+new Line.l3 bus1=b2.1.2.3 bus2=b3.1.2.3 phases=3 linecode=main length=0.7 units=km
+new Load.at_b1 phases=3 bus1=b1.1.2.3 conn=wye kv=7.2 kw=450 kvar=160 model=1
+new Load.at_b2 phases=1 bus1=b2.1 conn=wye kv=7.2 kw=120 kvar=45 model=2
+new Load.at_b3 phases=1 bus1=b3.3 conn=wye kv=7.2 kw=180 kvar=70 model=5
+set voltagebases=[12.47]
+calcvoltagebases
+set controlmode=off
+solve mode=snapshot
