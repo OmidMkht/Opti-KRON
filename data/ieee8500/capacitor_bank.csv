@@ -1,0 +1,11 @@
+capacitor_id,bus_id,phases,connection,rated_q_pu,num_steps,states,control_mode,enabled
+capbank2a,r20185,a,wye,0.01090909,1,1,2,1
+capbank2b,r20185,b,wye,0.01090909,1,1,2,1
+capbank2c,r20185,c,wye,0.01090909,1,1,2,1
+capbank1a,r42247,a,wye,0.01090909,1,1,2,1
+capbank1b,r42247,b,wye,0.01090909,1,1,2,1
+capbank1c,r42247,c,wye,0.01090909,1,1,2,1
+capbank0a,r42246,a,wye,0.01454545,1,1,2,1
+capbank0b,r42246,b,wye,0.01454545,1,1,2,1
+capbank0c,r42246,c,wye,0.01454545,1,1,2,1
+capbank3,r18242,abc,wye,0.03272727,1,1,,1

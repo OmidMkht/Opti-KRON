@@ -11,6 +11,11 @@
 
 The result of a full run. `assignment` is the one to use downstream -- it is the
 radialized map when radialization ran, and the raw one otherwise.
+
+`network` and `assignment` are always in **original** bus indices, whatever
+happened inside. When `contraction` is not `nothing` the solver ran on a
+switch-contracted feeder, so `solution.A` and `solution.kept` are in *contracted*
+indices and only `assignment` is safe to index the original network with.
 """
 struct Reduction
     network::Network
@@ -22,6 +27,7 @@ struct Reduction
     scenarios::Vector{Int}
     radiality::Symbol
     devices::Vector{Device}
+    contraction::Union{Nothing,SwitchContraction}
 end
 
 """
@@ -42,10 +48,20 @@ the worst violation moved from -1.4e-06 to +3.4e-05.
 (greedy, no hop limit, scales further). `solver` forces `:gurobi` / `:highs`
 rather than `:auto`, worth doing for a benchmark.
 
-`preserve` keeps equipment intact where the case ships `transformer.csv` /
-`switch.csv`: `:devices` (default) pins transformers, regulators and switches;
-`:transformers` merges across closed switches; `:none` pins nothing. The device
-*model* is preserved exactly; the loading through it still moves.
+`preserve` keeps equipment intact where the case ships device tables --
+`:both` (default), `:switches`, `:regulators`, `:none`, or an explicit tuple of
+kinds; see [`_preserve_kinds`](@ref). Phase shifters are pinned regardless, plain
+transformers never. The device *model* is preserved exactly; the loading through
+it still moves.
+
+`contract` solves on a switch-contracted feeder and expands the answer back, so
+`assignment` is full size either way. A closed switch is a jumper whose ends are
+electrically one node, and modelling it as an edge is what sets the condition
+number -- on ieee123, contracting the eight switches takes σ_max from 2.31e6 to
+3.1e4 and `cond` from 6.9e14 to 9.3e12. It also makes a switch all-or-nothing:
+either the whole group survives, in which case both terminals are kept and the
+switch admittance comes through `kron_reduce` exactly, or the group is absorbed
+entirely. Off by default because it changes which reduction you get.
 """
 function optikron(case;
     Ē::Real=0.01,
@@ -54,7 +70,8 @@ function optikron(case;
     radiality::Symbol=:in_model,
     backend::Symbol=:milp,
     solver::Symbol=:auto,
-    preserve::Symbol=:devices,
+    preserve=:both,
+    contract::Bool=false,
     directory::Union{Nothing,AbstractString}=nothing,
     time_limit::Union{Nothing,Real}=3600,
     V::Union{Nothing,AbstractMatrix}=nothing,
@@ -62,8 +79,7 @@ function optikron(case;
 
     radiality in (:post, :in_model, :none) ||
         error("radiality must be :post, :in_model or :none; got :$radiality.")
-    preserve in (:devices, :transformers, :none) ||
-        error("preserve must be :devices, :transformers or :none; got :$preserve.")
+    kinds = _preserve_kinds(preserve)
     backend in (:milp, :search_cpu, :search_gpu) ||
         error("backend must be :milp, :search_cpu or :search_gpu; got :$backend.")
 
@@ -82,14 +98,23 @@ function optikron(case;
     operating_point = V !== nothing ? Matrix{ComplexF64}(V) :
                       shipped !== nothing ? shipped : powerflow(network)
 
-    devices = (preserve !== :none && source !== nothing) ?
-              read_devices(source, network; switches=(preserve === :devices)) : Device[]
+    devices = (isempty(kinds) || source === nothing) ? Device[] :
+              read_devices(source, network; kinds=kinds)
+
+    # Solving on a switch-contracted feeder: smaller, far better conditioned, and
+    # a switch is then preserved by keeping one bus instead of pinning two. From
+    # here on `solved` is what the backend sees and `network` stays the original.
+    tree = orient_radial(network)
+    switches = (contract && source !== nothing) ?
+               read_devices(source, network; kinds=(:switch,)) : Device[]
+    solved, point, pinned, contraction =
+        _solver_view(network, operating_point, devices, switches)
 
     solution = if backend === :milp
-        solve_milp(network, operating_point, Ē;
+        solve_milp(solved, point, Ē;
             scenarios=selected,
             hops=hops,
-            pin=preserved_buses(devices),
+            pin=pinned,
             enforce_radiality=(radiality === :in_model),
             # Radiality can only be enforced when merges move towards the slack:
             # absorbing upstream can orphan a subtree the constraint cannot see.
@@ -101,22 +126,82 @@ function optikron(case;
         # No hop limit here -- the search merges neighbours and lets distance
         # accumulate through the chain -- and radiality comes from eliminating
         # only degree <= 2 buses rather than from a constraint.
-        search_reduce(network, operating_point, Ē;
+        search_reduce(solved, point, Ē;
             scenarios=selected,
             radial=(radiality !== :none),
             upstream=(radiality === :in_model),
-            pin=preserved_buses(devices),
+            pin=pinned,
             backend=(backend === :search_gpu ? :gpu : :cpu),
             time_limit=time_limit,
             kwargs...)
     end
 
+    # Back to original indices before anything else touches the result, so every
+    # downstream step -- radialization, the accuracy check, export -- works on
+    # the feeder the caller handed in.
+    full = contraction === nothing ? solution.A : uncontract(solution.A, contraction, tree)
     assignment, reinserted = (radiality === :post && backend === :milp) ?
-                             radialize(network, solution.A) : (solution.A, Int[])
+                             radialize(network, full) : (full, Int[])
 
     return Reduction(network, operating_point, solution, assignment, reinserted,
-        Float64(Ē), selected, radiality, devices)
+        Float64(Ē), selected, radiality, devices, contraction)
 end
+
+"""
+    _solver_view(net, V, devices, switches) -> (network, V, pin, contraction)
+
+What the backend actually solves: the feeder itself when `switches` is empty, or
+its switch-contracted form with the operating point and pins carried across.
+
+Every member of a contracted group holds the same voltage -- that is what the
+switch enforces -- so the group's voltage is any member's. Pins map through
+`parent`, which is why a contracted switch costs one pinned bus rather than two.
+"""
+function _solver_view(net::Network, V::AbstractMatrix, devices::Vector{Device},
+    switches::Vector{Device})
+
+    isempty(switches) && return net, V, preserved_buses(devices), nothing
+
+    contracted, contraction = contract_switches(net, switches)
+    blocks, cblocks = node_rows(net), node_rows(contracted)
+    Vc = zeros(ComplexF64, nphase_rows(contracted), size(V, 2))
+    for j in 1:nnodes(net)
+        m = contraction.parent[j]
+        group = [p for p in 1:3 if contracted.phases[p, m]]
+        for (local_j, p) in enumerate(p for p in 1:3 if net.phases[p, j])
+            Vc[cblocks[m][findfirst(==(p), group)], :] = V[blocks[j][local_j], :]
+        end
+    end
+    pin = sort!(unique(contraction.parent[b] for b in preserved_buses(devices)))
+    return contracted, Vc, pin, contraction
+end
+
+"""
+    _preserve_kinds(preserve) -> Tuple{Vararg{Symbol}}
+
+Resolve the `preserve` option to the device kinds to pin.
+
+- `:both` (default)  switches and regulators.
+- `:switches`        switches only.
+- `:regulators`      regulators only.
+- `:none`            neither.
+- a tuple or vector of kinds, for anything else.
+
+Phase-shifting transformers sit outside this choice and are pinned under all four
+options. A phase shift is the one connection a Schur complement cannot represent,
+so absorbing it would silently bake in one winding orientation -- a correctness
+requirement, not a preference.
+
+Plain transformers are never pinned. On ieee8500 the 2354 service transformers
+would pin 2400 buses, 49% of the feeder and a hard ceiling on reduction, while
+the regulators, switches and phase shifter together pin 85, or 1.7%.
+"""
+_preserve_kinds(preserve) =
+    preserve === :both ? (:phase_shift, :regulator, :switch) :
+    preserve === :switches ? (:phase_shift, :switch) :
+    preserve === :regulators ? (:phase_shift, :regulator) :
+    preserve === :none ? (:phase_shift,) :
+    _device_kinds(preserve)
 
 """
     load_case(name) -> Network
@@ -227,15 +312,22 @@ function Base.show(io::IO, ::MIME"text/plain", r::Reduction)
     println(io, net)
     @printf(io, "\nOperating point   |V| in [%.4f, %.4f] pu   (residual %.1e)\n",
         extrema(abs.(r.V))..., powerflow_residual(net, r.V))
+    # Counted from `assignment`, not from `sol`: with contraction the solution is
+    # in contracted indices and would understate what the caller actually keeps.
     @printf(io, "Reduction         %d buses -> %d super-nodes (%.1f%%)  [%s, %s, %.2fs]\n",
-        nnodes(net), length(sol.kept), 100 * sol.reduction, sol.status, sol.solver,
+        nnodes(net), kept, 100 * reduction_ratio(r.assignment), sol.status, sol.solver,
         sol.solve_time)
 
     _solution_detail(io, sol)
+    if r.contraction !== nothing
+        merged = count(g -> length(g) > 1, r.contraction.members)
+        @printf(io, "Contraction       %d switch group(s) short-circuited, solved on %d buses\n",
+            merged, ncontracted(r.contraction))
+    end
     if !isempty(r.devices)
-        transformers = count(d -> d.kind === :transformer, r.devices)
-        @printf(io, "Preserved         %d device(s) kept exactly (%d transformer, %d switch), %d buses pinned\n",
-            length(r.devices), transformers, length(r.devices) - transformers,
+        counts = [(k, count(d -> d.kind === k, r.devices)) for k in DEVICE_KINDS]
+        @printf(io, "Preserved         %d device(s) kept exactly (%s), %d buses pinned\n",
+            length(r.devices), join(("$n $k" for (k, n) in counts if n > 0), ", "),
             length(preserved_buses(r.devices)))
     end
     if r.radiality === :post

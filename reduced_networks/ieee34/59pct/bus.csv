@@ -1,0 +1,16 @@
+bus_id,phases,base_kv,type
+sourcebus,abc,1,slack
+800,abc,1,pq
+808,abc,1,pq
+812,abc,1,pq
+814,abc,1,pq
+814r,abc,1,pq
+816,abc,1,pq
+824,abc,1,pq
+820,a,1,pq
+830,abc,1,pq
+832,abc,1,pq
+852r,abc,1,pq
+888,abc,1,pq
+852,abc,1,pq
+890,abc,1,pq

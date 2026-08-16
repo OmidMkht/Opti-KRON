@@ -1,0 +1,2 @@
+equipment_id,from_bus,from_phases,to_bus,to_phases,from_connection,to_connection,phase_shift_deg,enabled
+hvmv_sub,hvmv_sub_hsb,abc,regxfmr_hvmv_sub_lsb,abc,delta,wye,-30,1

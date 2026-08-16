@@ -1,4 +1,5 @@
 const IEEE37 = joinpath(@__DIR__, "..", "data", "ieee37")
+const IEEE34 = joinpath(@__DIR__, "..", "data", "ieee34")
 const IEEE123 = joinpath(@__DIR__, "..", "data", "ieee123")
 
 "Rows of a Kron-reduced matrix belonging to a kept bus."
@@ -12,19 +13,24 @@ end
 
 @testset "OptiKRON.devices" begin
 
-    @testset "reading device tables" begin
-        net = read_network_ybus(IEEE37)
-        devices = read_devices(IEEE37, net)
+    @testset "kinds come from the classifying tables" begin
+        net = read_network_ybus(IEEE34)
+        devices = read_devices(IEEE34, net)
 
-        # ieee37 ships two transformers, both explicit_ybus, no switches.
-        @test length(devices) == 2
-        @test all(d -> d.kind === :transformer, devices)
-        @test all(d -> d.note == "explicit_ybus", devices)
-        @test preserved_buses(devices) == sort(unique(vcat([d.from for d in devices],
-            [d.to for d in devices])))
-        @test length(preserved_buses(devices)) == 4
+        # ieee34 ships 8 transformer rows: 6 are named by regulator.csv, 1 by
+        # phase_shift_equipment.csv, leaving 1 plain transformer.
+        counts = Dict(k => count(d -> d.kind === k, devices) for k in OptiKRON.DEVICE_KINDS)
+        @test counts[:regulator] == 6
+        @test counts[:phase_shift] == 1
+        @test counts[:transformer] == 1
+        @test counts[:switch] == 0
+        @test length(devices) == 8
 
-        # Terminals resolve to real buses, and a device is never a self-loop.
+        # The phase shifter is the delta-wye substation transformer.
+        shifter = only(filter(d -> d.kind === :phase_shift, devices))
+        @test shifter.id == "subxf"
+        @test shifter.note == "delta-wye"
+
         for d in devices
             @test 1 <= d.from <= nnodes(net)
             @test 1 <= d.to <= nnodes(net)
@@ -32,31 +38,46 @@ end
         end
     end
 
-    @testset "switches are separable from transformers" begin
+    @testset "kinds select independently" begin
         net = read_network_ybus(IEEE123)
-        all_devices = read_devices(IEEE123, net)
-        transformers = read_devices(IEEE123, net; switches=false)
 
-        @test length(transformers) == 1
-        @test length(all_devices) == 7                       # 1 transformer + 6 closed switches
-        @test count(d -> d.kind === :switch, all_devices) == 6
-        @test isempty(read_devices(IEEE123, net; transformers=false, switches=false))
+        @test isempty(read_devices(IEEE123, net; kinds=()))
+        @test all(d -> d.kind === :switch, read_devices(IEEE123, net; kinds=(:switch,)))
+        @test length(read_devices(IEEE123, net; kinds=(:regulator,))) == 7
+        @test length(read_devices(IEEE123, net; kinds=:all)) ==
+              length(read_devices(IEEE123, net))
 
-        # Preserving switches costs strictly more buses than not.
-        @test length(preserved_buses(all_devices)) > length(preserved_buses(transformers))
+        # Selecting a subset never returns more than selecting everything.
+        subset = read_devices(IEEE123, net; kinds=(:regulator, :switch))
+        @test length(preserved_buses(subset)) <=
+              length(preserved_buses(read_devices(IEEE123, net)))
+
+        @test_throws ErrorException read_devices(IEEE123, net; kinds=(:capacitor,))
     end
 
-    @testset "collapsed devices are not preservable" begin
-        # ieee8500 names 1178 transformers but all except one were collapsed into
-        # their primary at export, so their secondary is not a bus here. Pinning
-        # on the name alone would freeze 45% of the feeder for nothing.
-        net = read_network_ybus(joinpath(@__DIR__, "..", "data", "ieee8500"))
-        devices = read_devices(joinpath(@__DIR__, "..", "data", "ieee8500"), net;
-            switches=false)
+    @testset "open switches are not edges" begin
+        net = read_network_ybus(IEEE123)
+        switches = read_devices(IEEE123, net; kinds=(:switch,))
 
-        @test length(devices) == 1
-        @test devices[1].note == "explicit_ybus"
-        @test length(preserved_buses(devices)) == 2
+        # switch.csv lists 8, two of them open; an open switch is not in Ybus.
+        @test length(switches) == 6
+        @test all(d -> d.note == "closed", switches)
+    end
+
+    @testset "service transformers dominate a large feeder" begin
+        # ieee8500 ships 2354 service transformers against 12 regulators and 38
+        # switches. Pinning them all is a hard ceiling on reduction, which is why
+        # `preserve` is per-kind rather than all-or-nothing.
+        dir = joinpath(@__DIR__, "..", "data", "ieee8500")
+        net = read_network_ybus(dir)
+
+        everything = preserved_buses(read_devices(dir, net))
+        stateful = preserved_buses(read_devices(dir, net;
+            kinds=(:regulator, :phase_shift, :switch)))
+
+        @test length(everything) / nnodes(net) > 0.4
+        @test length(stateful) / nnodes(net) < 0.05
+        @test issubset(stateful, everything)
     end
 
     @testset "_apply_pins! clears only the pinned column" begin
@@ -94,11 +115,16 @@ end
     end
 
     @testset "preserved devices come through Kron reduction exactly" begin
-        # The claim the whole feature rests on: with both terminals kept, the
-        # Schur complement leaves the device's admittance block untouched --
-        # not approximately, exactly. Y_rr is block-diagonal across the two
-        # sides of the device edge, so the correction term at (i,j) is zero.
-        for directory in (IEEE37, IEEE123)
+        # The claim the whole feature rests on: with both terminals kept, Y_rr is
+        # block-diagonal across the two sides of the device edge, so the Schur
+        # correction at (i,j) is identically zero and the block is untouched.
+        #
+        # Asserted relative to the block's own scale rather than with `==`. The
+        # correction is zero in exact arithmetic, but `pinv` reaches it through an
+        # SVD, which does not preserve block-diagonality bit-for-bit; the residue
+        # runs to 1.5e-14 absolute on a jumper with entries near 1.2e6, which is
+        # under one ULP and as exact as Float64 gets.
+        for directory in (IEEE37, IEEE34, IEEE123)
             net = read_network_ybus(directory)
             V = read_voltage(directory, net)
             devices = read_devices(directory, net)
@@ -117,31 +143,54 @@ end
                 @test rows !== nothing && cols !== nothing
 
                 original = Matrix(net.Ybus[blocks[d.from], blocks[d.to]])
-                @test Y_reduced[rows, cols] == original       # bit-for-bit, not ≈
+                scale = maximum(abs, original)
+                @test maximum(abs, Y_reduced[rows, cols] .- original) <= 8 * eps(scale)
             end
         end
     end
 
     @testset "preserve option in the pipeline" begin
         loose = optikron("ieee123"; Ē=0.01, hops=5, preserve=:none, time_limit=600)
-        transformers = optikron("ieee123"; Ē=0.01, hops=5, preserve=:transformers,
-            time_limit=600)
-        devices = optikron("ieee123"; Ē=0.01, hops=5, preserve=:devices, time_limit=600)
+        sw = optikron("ieee123"; Ē=0.01, hops=5, preserve=:switches, time_limit=600)
+        reg = optikron("ieee123"; Ē=0.01, hops=5, preserve=:regulators, time_limit=600)
+        both = optikron("ieee123"; Ē=0.01, hops=5, preserve=:both, time_limit=600)
 
-        @test isempty(loose.devices)
-        @test length(transformers.devices) == 1
-        @test length(devices.devices) == 7
+        # Plain transformers are pinned under none of them.
+        for r in (loose, sw, reg, both)
+            @test all(d -> d.kind !== :transformer, r.devices)
+        end
+        @test all(d -> d.kind !== :regulator, sw.devices)
+        @test all(d -> d.kind !== :switch, reg.devices)
+        @test length(both.devices) == length(sw.devices) + length(reg.devices)
 
-        # More preserved equipment means more buses kept, never fewer.
-        @test length(loose.solution.kept) <= length(transformers.solution.kept)
-        @test length(transformers.solution.kept) <= length(devices.solution.kept)
+        # Each single-kind option preserves at least as much as neither, and
+        # `:both` at least as much as either.
+        for r in (sw, reg)
+            @test length(loose.solution.kept) <= length(r.solution.kept)
+            @test length(r.solution.kept) <= length(both.solution.kept)
+        end
 
         # And every one of them stays inside the budget.
-        for r in (loose, transformers, devices)
+        for r in (loose, sw, reg, both)
             @test enforced_violation(r) <= 0
         end
 
         @test_throws ErrorException optikron("ieee123"; preserve=:everything)
+    end
+
+    @testset "_preserve_kinds resolves the shorthands" begin
+        @test OptiKRON._preserve_kinds(:both) == (:phase_shift, :regulator, :switch)
+        @test OptiKRON._preserve_kinds(:switches) == (:phase_shift, :switch)
+        @test OptiKRON._preserve_kinds(:regulators) == (:phase_shift, :regulator)
+        @test OptiKRON._preserve_kinds(:none) == (:phase_shift,)
+        @test OptiKRON._preserve_kinds((:switch,)) == (:switch,)
+
+        # A phase shift cannot be represented by a Schur complement, so it is
+        # pinned whatever the caller asks for on the switch/regulator axis.
+        for option in (:both, :switches, :regulators, :none)
+            @test :phase_shift in OptiKRON._preserve_kinds(option)
+            @test :transformer ∉ OptiKRON._preserve_kinds(option)
+        end
     end
 
     @testset "a case with no device tables pins nothing" begin

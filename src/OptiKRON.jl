@@ -48,6 +48,7 @@ export write_matpower, write_reduced_csv, read_voltage, read_devices, preserved_
 # ---- Core: topology, Kron reduction, radialization ------------------------ #
 include("core/topology.jl")
 include("core/kron.jl")
+include("core/contraction.jl")
 include("core/radialization.jl")
 include("core/powerflow.jl")
 
@@ -57,6 +58,7 @@ export expand_assignment, aggregate_injections, lift_voltages
 export super_nodes, reduction_ratio, kron_reduce, reduced_adjacency
 export identity_assignment, assign!
 export critical_nodes, radialize, is_radial, spanning_subtree
+export SwitchContraction, contract_switches, uncontract, ncontracted
 export powerflow, powerflow_residual, slack_voltage
 
 # ---- Optimization -------------------------------------------------------- #

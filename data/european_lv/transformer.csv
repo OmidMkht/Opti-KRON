@@ -1,0 +1,2 @@
+transformer_id,secondary_winding,from_bus,from_phases,to_bus,to_phases,from_connection,to_connection,voltage_ratio,tap_pu,enabled
+tr1,1,sourcebus,abc,1,abc,delta,wye,0.03781818,1,1

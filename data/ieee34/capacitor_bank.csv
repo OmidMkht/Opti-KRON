@@ -1,0 +1,3 @@
+capacitor_id,bus_id,phases,connection,rated_q_pu,num_steps,states,control_mode,enabled
+c844,844,abc,wye,0.12,1,1,,1
+c848,848,abc,wye,0.18,1,1,,1

@@ -6,28 +6,40 @@
 # folded into a Schur complement. Pinning both terminals preserves it exactly:
 # deleting the device edge splits a radial feeder into T_i and T_j, and no
 # eliminated bus touches both sides -- such a bus would be a second i-j path,
-# which a tree does not have. So Y_rr is block-diagonal across the split, the
-# correction at entry (i,j) is identically zero, and Y_red[i,j] == Y[i,j] to the
-# last bit. The same argument rules out fill-in bridging the sides, so the device
-# also stays the unique cut edge.
+# which a tree does not have. So Y_rr is block-diagonal across the split and the
+# correction at entry (i,j) is identically zero. The same argument rules out
+# fill-in bridging the sides, so the device also stays the unique cut edge.
+#
+# Exact in arithmetic; in Float64 the residue is under one ULP of the block's own
+# scale, because `pinv` reaches the inverse through an SVD that does not preserve
+# block-diagonality bit-for-bit.
 #
 # Loading is not preserved: the assignment relocates injections, so the current
 # through the device changes. The error budget bounds that.
 #
-# Two filters matter. Only `model_scope = explicit_ybus` devices are an edge in
-# our Ybus at all -- feeders exported with service transformers already collapsed
-# mark those `collapsed_primary_load`, worth 2 pinned buses against 1140 on
-# ieee8500. Both terminals must also appear in bus.csv.
+# The stronger reason to pin is *state*. A regulator taps and a switch opens; a
+# reduction that folded either in would silently encode one tap position or one
+# switch state and be wrong the moment the device moved. A delta-wye phase shift
+# never changes, so pinning it is about keeping the network interpretable.
+#
+# `transformer.csv` is the edge list; `regulator.csv` and
+# `phase_shift_equipment.csv` classify rows of it rather than adding edges. A
+# transformer named by the phase-shift table is `:phase_shift`, one named by a
+# regulator's `transformer_id` is `:regulator`, and the rest are `:transformer`.
+# Rows with `enabled = 0`, open switches, and terminals absent from bus.csv are
+# all dropped -- none of them is an edge of this Ybus.
 # --------------------------------------------------------------------------- #
+
+const DEVICE_KINDS = (:transformer, :regulator, :phase_shift, :switch)
 
 """
     Device
 
 One piece of equipment the reduction must keep intact, as a bus-index pair.
 
-`kind` is `:transformer` (covering regulators and tap changers, which ship in the
-same table) or `:switch`. `note` carries the source file's qualifier verbatim --
-`model_scope` or `status` -- so a reduction can report *why* a bus was pinned.
+`kind` is one of `$(DEVICE_KINDS)`. `note` carries the source row's own
+qualifier -- winding connections for a transformer, `status` for a switch -- so a
+reduction can report *why* a bus was pinned.
 """
 struct Device
     id::String
@@ -38,65 +50,99 @@ struct Device
 end
 
 """
-    read_devices(dir, net; switches=true, transformers=true) -> Vector{Device}
+    read_devices(dir, net; kinds=DEVICE_KINDS) -> Vector{Device}
 
-Devices in `dir` whose terminals both exist in `net` and which are genuine edges
-of `net.Ybus`. Empty when the case ships no device files, as the MATPOWER feeders
-do not.
+Devices in `dir` of the requested `kinds` whose terminals both exist in `net`.
+Empty when the case ships no device files, as the MATPOWER feeders do not.
 
-Reads `transformer.csv` (`transformer_id, from_bus, from_phases, to_bus,
-to_phases, model_scope`) and `switch.csv` (`switch_id, ..., status`). Phase
-columns are ignored -- pinning is per bus, and a pinned bus keeps every phase.
+Reads `transformer.csv`, `regulator.csv`, `phase_shift_equipment.csv` and
+`switch.csv`. Phase columns are ignored -- pinning is per bus, and a pinned bus
+keeps every phase.
 
-Only `explicit_ybus` transformers are returned (see the header, worth 45% of
-`ieee8500`), and `open` switches are dropped -- an open switch is not an edge in
-`Ybus`. Pass `switches=false` to merge across closed ones, which is nearly free
-since a closed switch is a jumper whose ends are electrically one node, unless
-the switch must stay operable for reconfiguration studies.
+`kinds` accepts any subset of `$(DEVICE_KINDS)`, or `:all`. Dropping `:switch`
+merges across closed switches, which is nearly free since a closed switch is a
+jumper whose ends are electrically one node -- worth it unless the switch must
+stay operable for reconfiguration studies. Dropping `:regulator` lets the
+reduction absorb a regulator at its present tap, which is only safe if the taps
+are frozen.
 """
-function read_devices(dir::AbstractString, net::Network;
-    switches::Bool=true, transformers::Bool=true)
-
+function read_devices(dir::AbstractString, net::Network; kinds=DEVICE_KINDS)
+    wanted = _device_kinds(kinds)
     index_of = Dict(id => k for (k, id) in enumerate(net.bus_ids))
     found = Device[]
 
-    transformers && _read_device_file!(found, joinpath(dir, "transformer.csv"),
-        :transformer, index_of, :model_scope, scope -> scope == "explicit_ybus")
-    switches && _read_device_file!(found, joinpath(dir, "switch.csv"),
-        :switch, index_of, :status, status -> status != "open")
+    shifters = _ids_in(joinpath(dir, "phase_shift_equipment.csv"), :equipment_id)
+    regulated = _ids_in(joinpath(dir, "regulator.csv"), :transformer_id)
 
+    _each_row(joinpath(dir, "transformer.csv")) do row
+        id = _as_string(row.transformer_id)
+        kind = id in shifters ? :phase_shift : id in regulated ? :regulator : :transformer
+        kind in wanted || return
+        note = string(_column(row, :from_connection, "?"), "-",
+            _column(row, :to_connection, "?"))
+        _push_device!(found, index_of, id, kind, row, note)
+    end
+
+    if :switch in wanted
+        _each_row(joinpath(dir, "switch.csv")) do row
+            status = _column(row, :status, "")
+            status == "open" && return          # not an edge of this Ybus
+            _push_device!(found, index_of, _as_string(row.switch_id), :switch, row, status)
+        end
+    end
     return found
 end
 
-"Shared reader for the two device tables, which differ only in their qualifier column."
-function _read_device_file!(found::Vector{Device}, path::AbstractString, kind::Symbol,
-    index_of::Dict{String,Int}, qualifier::Symbol, admit)
+"Normalise the `kinds` argument, rejecting anything that is not a device kind."
+function _device_kinds(kinds)
+    kinds === :all && return DEVICE_KINDS
+    kinds isa Symbol && (kinds = (kinds,))
+    for k in kinds
+        k in DEVICE_KINDS || error("$k is not a device kind; expected some of $DEVICE_KINDS.")
+    end
+    return Tuple(kinds)
+end
 
-    isfile(path) || return found
+"Values of `column` in `path`, as a set. Empty when the file is absent or has no such column."
+function _ids_in(path::AbstractString, column::Symbol)
+    ids = Set{String}()
+    _each_row(path) do row
+        hasproperty(row, column) && push!(ids, _as_string(getproperty(row, column)))
+    end
+    return ids
+end
+
+"Apply `f` to every enabled row of `path`, skipping the file when it is absent or empty."
+function _each_row(f, path::AbstractString)
+    isfile(path) || return
     df = CSV.read(path, DataFrame)
-    isempty(df) && return found
-
-    id_column = Symbol(kind == :transformer ? "transformer_id" : "switch_id")
-    for column in (id_column, :from_bus, :to_bus)
-        String(column) in names(df) ||
-            error("$(basename(path)) has no `$column` column.")
-    end
-    has_qualifier = String(qualifier) in names(df)
-
+    isempty(df) && return
     for row in eachrow(df)
-        # A blank qualifier is unknown, not a value -- switch status often is.
-        raw = has_qualifier ? row[qualifier] : missing
-        note = ismissing(raw) ? "" : _as_string(raw)
-        admit(note) || continue
-
-        from = get(index_of, _as_string(row.from_bus), nothing)
-        to = get(index_of, _as_string(row.to_bus), nothing)
-        # A missing terminal means the device was collapsed before it reached us.
-        (from === nothing || to === nothing || from == to) && continue
-
-        push!(found, Device(_as_string(row[id_column]), kind, from, to, note))
+        _column(row, :enabled, "1") == "0" && continue
+        f(row)
     end
-    return found
+end
+
+"A row's `column` as a lowercase string, or `default` when absent or blank."
+function _column(row, column::Symbol, default::AbstractString)
+    hasproperty(row, column) || return default
+    value = getproperty(row, column)
+    ismissing(value) && return default
+    text = lowercase(strip(_as_string(value)))
+    return isempty(text) ? default : text
+end
+
+function _push_device!(found::Vector{Device}, index_of::Dict{String,Int},
+    id::AbstractString, kind::Symbol, row, note::AbstractString)
+
+    for column in (:from_bus, :to_bus)
+        hasproperty(row, column) || error("A device row has no `$column` column.")
+    end
+    from = get(index_of, _as_string(row.from_bus), nothing)
+    to = get(index_of, _as_string(row.to_bus), nothing)
+    # A missing terminal means the device was collapsed before it reached us.
+    (from === nothing || to === nothing || from == to) && return
+    push!(found, Device(String(id), kind, from, to, String(note)))
 end
 
 "Bus indices to pin, sorted and deduplicated. Goes to `solve_milp(...; pin=...)`."

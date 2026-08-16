@@ -1,7 +1,9 @@
-switch_id,from_bus,from_phases,to_bus,to_phases,status
-SW1,13,abc,152,abc,closed
-SW2,18,abc,135,abc,closed
-SW3,60,abc,160,abc,closed
-SW4,61,abc,61s,abc,closed
-SW5,97,abc,197,abc,closed
-SW6,150,abc,149,abc,closed
+switch_id,from_bus,from_phases,to_bus,to_phases,status,enabled
+sw1,150r,abc,149,abc,closed,1
+sw2,13,abc,152,abc,closed,1
+sw3,18,abc,135,abc,closed,1
+sw4,60,abc,160,abc,closed,1
+sw5,97,abc,197,abc,closed,1
+sw6,61,abc,61s,abc,closed,1
+sw7,151,abc,300,abc,open,1
+sw8,54,a,94,a,open,1

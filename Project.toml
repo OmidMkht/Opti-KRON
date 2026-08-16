@@ -8,7 +8,6 @@ CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
-JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
@@ -20,12 +19,17 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 # package that must also work without them. See `load_gurobi!` and `load_cuda!`.
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Gurobi = "2e9cd046-0924-5485-92f1-d5272153d98b"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+# Without this `Pkg.test()` builds an environment with no `Test` in it and dies
+# before reaching the first testset.
+[targets]
+test = ["Test"]
 
 [compat]
 CSV = "0.10"
 DataFrames = "1"
 Graphs = "1"
 HiGHS = "1"
-JLD2 = "0.4, 0.5"
 JuMP = "1"
 julia = "1.10"

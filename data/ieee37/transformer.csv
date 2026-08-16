@@ -1,3 +1,5 @@
-transformer_id,from_bus,from_phases,to_bus,to_phases,model_scope
-Xfm-1,775,abc,709,abc,explicit_ybus
-subXFM,sourcebus,abc,799,abc,explicit_ybus
+transformer_id,secondary_winding,from_bus,from_phases,to_bus,to_phases,from_connection,to_connection,voltage_ratio,tap_pu,enabled
+subxf,1,sourcebus,abc,799,abc,delta,delta,0.02086957,1,1
+xfm1,1,709,abc,775,abc,delta,delta,0.1,1,1
+reg1a,1,799,ab,799r,ab,delta,delta,1,1.1,1
+reg1c,1,799,cb,799r,cb,delta,delta,1,1.0875,1

@@ -168,8 +168,8 @@ function _build_ybus(branches::Vector{Branch}, phases::AbstractMatrix{Bool}, blo
         y = inv(z)
         shunt = (br.b ./ 2) .* im
 
-        rows_f = _phase_rows(br, br.from, phases, blocks, k)
-        rows_t = _phase_rows(br, br.to, phases, blocks, k)
+        rows_f = _branch_rows(br, br.from, phases, blocks, k)
+        rows_t = _branch_rows(br, br.to, phases, blocks, k)
 
         push_block!(rows_f, rows_f, y .+ shunt)
         push_block!(rows_t, rows_t, y .+ shunt)
@@ -180,8 +180,15 @@ function _build_ybus(branches::Vector{Branch}, phases::AbstractMatrix{Bool}, blo
     return sparse(I_idx, J_idx, vals, nph, nph, +)
 end
 
-"Map a branch's phases to the global rows of one of its end buses."
-function _phase_rows(br::Branch, bus::Int, phases::AbstractMatrix{Bool}, blocks::Vector{Vector{Int}}, k::Int)
+"""
+Map a branch's phases to the global rows of one of its end buses.
+
+Named apart from `_phase_rows` in the optimization layer deliberately: that one
+tabulates every bus's rows by phase, this one resolves a single branch against a
+single bus. Sharing a generic between two unrelated jobs invites a dispatch
+surprise the day their signatures come close.
+"""
+function _branch_rows(br::Branch, bus::Int, phases::AbstractMatrix{Bool}, blocks::Vector{Vector{Int}}, k::Int)
     bus_phases = [PHASE_SYMBOLS[p] for p in 1:3 if phases[p, bus]]
     map(br.phases) do p
         local_idx = findfirst(==(p), bus_phases)

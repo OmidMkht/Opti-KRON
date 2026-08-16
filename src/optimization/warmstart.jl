@@ -20,6 +20,25 @@
 # --------------------------------------------------------------------------- #
 
 """
+Relative floor under which an injection is serialisation noise rather than load.
+
+An exact `iszero` test is the wrong question to ask of a file. A feeder written
+at ~14 decimals stores an unloaded junction as `1e-15` rather than `0`, and on
+the re-exported three-phase cases that is most of the network: `ieee123` records
+128 of 274 node-phase rows below `1e-12`, `european_lv` 2355 of 2721. Tested
+exactly, those feeders report almost no zero-injection buses at all and the warm
+start below has nothing to merge.
+
+The threshold is relative to the largest injection on the feeder, not absolute,
+because per-unit bases differ by orders of magnitude across these cases —
+`case1197` peaks at `1.6e-05` where `ieee37` peaks at `0.45`. At `1e-9` it clears
+the smallest *genuine* load on every shipped feeder by at least three orders of
+magnitude (the tightest is `case533mt`, real minimum `8.0e-08` against a floor of
+`8.3e-11`) while absorbing dust that sits five to nine orders below.
+"""
+const INJECTION_FLOOR = 1e-9
+
+"""
     zero_injection_buses(net; scenarios, tol) -> Vector{Int}
 
 Buses drawing no net power in any of `scenarios`, excluding the slack.
@@ -27,9 +46,13 @@ Buses drawing no net power in any of `scenarios`, excluding the slack.
 Judged on the injection matrix, which already folds in shunts, so a bus carrying
 only a shunt is correctly *not* zero-injection. All phases must be quiet, since
 buses are reduced whole.
+
+`tol` defaults to [`INJECTION_FLOOR`](@ref) scaled by the feeder's own largest
+injection; pass `0.0` for an exact test.
 """
 function zero_injection_buses(net::Network;
-    scenarios=1:nscenarios(net), tol::Real=0.0)
+    scenarios=1:nscenarios(net),
+    tol::Real=INJECTION_FLOOR * maximum(abs, net.S; init=0.0))
 
     blocks = node_rows(net)
     quiet = Int[]
@@ -56,8 +79,9 @@ function zero_injection_warmstart(net::Network, V::AbstractMatrix, Ē::Real,
     max_reduction::Real=1.0,
     enforce_radiality::Bool=false,
     reach::Union{Nothing,BitMatrix}=nothing,
-    tol::Real=0.0,
+    tol::Real=INJECTION_FLOOR * maximum(abs, net.S; init=0.0),
     prefer::Symbol=:auto,
+    verbose::Bool=false,
     time_limit::Union{Nothing,Real}=nothing)
 
     B = nnodes(net)
@@ -81,7 +105,7 @@ function zero_injection_warmstart(net::Network, V::AbstractMatrix, Ē::Real,
     row_of = _phase_rows(net)
     pairs = findall(allowed)
 
-    factory, _ = select_optimizer(prefer=prefer, verbose=false,
+    factory, _ = select_optimizer(prefer=prefer, verbose=verbose,
         time_limit=time_limit, mip_gap=1e-3)
     model = Model(factory)
 

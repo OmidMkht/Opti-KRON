@@ -1,0 +1,13 @@
+regulator_id,transformer_id,from_bus,regulated_bus,controlled_winding,tap_pu,vreg_pu,band_pu,enabled
+feeder_rega,feeder_rega,regxfmr_hvmv_sub_lsb,_hvmv_sub_lsb,2,1.0125,1.05423141,0.01666769,1
+feeder_regb,feeder_regb,regxfmr_hvmv_sub_lsb,_hvmv_sub_lsb,2,1.0125,1.05423141,0.01666769,1
+feeder_regc,feeder_regc,regxfmr_hvmv_sub_lsb,_hvmv_sub_lsb,2,1.00625,1.05423141,0.01666769,1
+vreg2_a,vreg2_a,regxfmr_190-8593,190-8593,2,1.0625,1.04173064,0.01666769,1
+vreg2_b,vreg2_b,regxfmr_190-8593,190-8593,2,1.0375,1.04173064,0.01666769,1
+vreg2_c,vreg2_c,regxfmr_190-8593,190-8593,2,1.0125,1.04173064,0.01666769,1
+vreg3_a,vreg3_a,regxfmr_190-8581,190-8581,2,1.1,1.04173064,0.01666769,1
+vreg3_b,vreg3_b,regxfmr_190-8581,190-8581,2,1.0625,1.04173064,0.01666769,1
+vreg3_c,vreg3_c,regxfmr_190-8581,190-8581,2,1.00625,1.04173064,0.01666769,1
+vreg4_a,vreg4_a,regxfmr_190-7361,190-7361,2,1.075,1.04173064,0.01666769,1
+vreg4_b,vreg4_b,regxfmr_190-7361,190-7361,2,1.075,1.04173064,0.01666769,1
+vreg4_c,vreg4_c,regxfmr_190-7361,190-7361,2,1.03125,1.04173064,0.01666769,1

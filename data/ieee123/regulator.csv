@@ -1,0 +1,8 @@
+regulator_id,transformer_id,from_bus,regulated_bus,controlled_winding,tap_pu,vreg_pu,band_pu,enabled
+creg1a,reg1a,150,150r,2,1.0375,0.99926008,0.01665433,1
+creg2a,reg2a,9,9r,2,1,0.99926008,0.01665433,1
+creg3a,reg3a,25,25r,2,1.0125,0.99926008,0.00832717,1
+creg3c,reg3c,25,25r,2,1,0.99926008,0.00832717,1
+creg4a,reg4a,160,160r,2,1.0625,1.03256875,0.01665433,1
+creg4b,reg4b,160,160r,2,1.025,1.03256875,0.01665433,1
+creg4c,reg4c,160,160r,2,1.0375,1.03256875,0.01665433,1

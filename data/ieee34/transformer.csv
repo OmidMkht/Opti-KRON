@@ -1,0 +1,9 @@
+transformer_id,secondary_winding,from_bus,from_phases,to_bus,to_phases,from_connection,to_connection,voltage_ratio,tap_pu,enabled
+subxf,1,sourcebus,abc,800,abc,delta,wye,0.36086957,1,1
+xfm1,1,832,abc,888,abc,wye,wye,0.16706827,1,1
+reg1a,1,814,a,814r,a,wye,wye,1,1.0875,1
+reg1b,1,814,b,814r,b,wye,wye,1,1.025,1
+reg1c,1,814,c,814r,c,wye,wye,1,1.03125,1
+reg2a,1,852,a,852r,a,wye,wye,1,1.08125,1
+reg2b,1,852,b,852r,b,wye,wye,1,1.08125,1
+reg2c,1,852,c,852r,c,wye,wye,1,1.08125,1

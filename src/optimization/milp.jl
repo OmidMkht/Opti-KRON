@@ -22,8 +22,15 @@
 # against the secant of its square. Neither is robust to simultaneous merges, so
 # `annulus_violation` re-checks the answer against the nonconvex constraint.
 #
-# On/off is by JuMP indicator constraints rather than big-M: no constant to size
-# wrong, and nothing dilutes the LP relaxation.
+# On/off is by big-M, with M derived rather than guessed: screening already
+# bounds |e[i,s]|, and |w| <= (|Re V_i| + |Im V_i|) * dev[i,s] carries that over
+# to the aligned term. M therefore only has to make the inactive case vacuous,
+# never to tighten an active one, so it cannot be a source of infeasibility.
+#
+# Indicator constraints keep a tighter LP relaxation in principle and were used
+# here first, but measured slower on every feeder carrying enough surviving rows
+# for the choice to register -- 3.89s to 2.20s on case533mt at Ē=0.003, 9.45s to
+# 6.20s on case1197 at Ē=0.006 -- at identical optima.
 # --------------------------------------------------------------------------- #
 
 """
@@ -50,7 +57,7 @@ struct MilpSolution <: ReductionSolution
     solver::Symbol
     scenarios::Vector{Int}
     nbinaries::Int
-    nindicators::Int
+    nannulus::Int
     build_time::Float64
     solve_time::Float64
     screening::Union{Nothing,ScreeningReport}
@@ -91,6 +98,8 @@ inconsistent with `Ybus` and `S` invalidates the bound while still solving.
 - `direction`      `:any`, or `:downstream` to absorb only towards the slack.
 - `approach`       `:R` or `:S`, the two annulus linearisations (see header).
 - `max_reduction`  refuse to eliminate more than this fraction of buses.
+- `big_m_safety`   headroom on the derived big-M. Only ever loosens the inactive
+                   case, so raising it is safe and lowering it below 1 is not.
 - `pin`            buses that must survive. Pin both terminals of a device and
                    its admittance survives exactly -- see [`read_devices`](@ref).
 - `warm_start`     `:zero_injection` (default) first merges only buses that
@@ -107,6 +116,7 @@ function solve_milp(net::Network, V::AbstractMatrix, Ē::Real;
     direction::Symbol=:any,
     approach::Symbol=:R,
     max_reduction::Real=1.0,
+    big_m_safety::Real=1.25,
     pin::AbstractVector{Int}=Int[],
     screen::Bool=true,
     enforce_radiality::Bool=false,
@@ -165,6 +175,13 @@ function solve_milp(net::Network, V::AbstractMatrix, Ē::Real;
     end
     pairs = findall(admissible)
 
+    # Big-M is sized from this whether or not the screen ran, so it is computed
+    # here when it did not. A bound taken before a later pass removed more pairs
+    # is stale only in the safe direction: a smaller mask means fewer possible
+    # representatives, hence a smaller radius, so the stored one still dominates.
+    deviation = report === nothing ?
+                deviation_bound(Zfull, C, admissible, net, sel) : report.deviation
+
     # ---- model ------------------------------------------------------------- #
     factory, solver_name = select_optimizer(prefer=prefer, verbose=verbose,
         time_limit=time_limit, mip_gap=mip_gap)
@@ -173,7 +190,7 @@ function solve_milp(net::Network, V::AbstractMatrix, Ē::Real;
     # Resolved *after* screening, so the start can only pick pairs this model has
     # a binary for -- see warmstart.jl for what goes wrong otherwise.
     start_map = _resolve_warm_start(warm_start, net, V, Ē, admissible, tree, sel,
-        max_reduction, enforce_radiality, reach, prefer, time_limit)
+        max_reduction, enforce_radiality, reach, prefer, verbose, time_limit)
 
     @variable(model, a[1:length(pairs)], Bin)
     A = Matrix{AffExpr}(undef, B, B)
@@ -188,11 +205,10 @@ function solve_milp(net::Network, V::AbstractMatrix, Ē::Real;
     _assignment_constraints!(model, A, admissible, paths, net.slack, B, max_reduction)
     enforce_radiality &&
         add_radiality_constraints!(model, [A[i, i] for i in 1:B], tree; reach=reach)
-    nind = _annulus_constraints!(model, a, pairs, net, C, Zfull, V, absV, sel, Ē,
-        approach, needed)
+    nann = _annulus_constraints!(model, a, pairs, net, C, Zfull, V, absV, sel, Ē,
+        approach, needed, deviation, big_m_safety)
 
     build_time = time() - t_build
-
     optimize!(model)
     status = termination_status(model)
     has_values(model) ||
@@ -206,7 +222,7 @@ function solve_milp(net::Network, V::AbstractMatrix, Ē::Real;
 
     return MilpSolution(A_val, super_nodes(A_val), reduction_ratio(A_val),
         objective_value(model), objective_bound(model), relative_gap(model),
-        status, solver_name, sel, length(pairs), nind, build_time, solve_time(model),
+        status, solver_name, sel, length(pairs), nann, build_time, solve_time(model),
         report)
 end
 
@@ -221,9 +237,13 @@ any current asked of it, so a perturbation there propagates nowhere (zero column
 and the slack's own voltage never moves (zero row).
 
 Inverting the full `Ybus` instead only works when the feeder carries a shunt to
-ground. Without one it is a singular Laplacian, and `inv` quietly returns entries
-around 1e12 that cancel to noise in the constraint rows rather than failing --
-exactly what feeders assembled from branch data do.
+ground. Without one it is a singular Laplacian, and every row sums to zero.
+
+Conditioning is not checked here. `cond` measures how accurately `inv` inverts,
+which is a different question from whether the resulting error model predicts
+real voltages -- ieee123 inverts to only 3e-4 yet its operating point solves to
+1e-8. What matters is the second question, so it is asked where the operating
+point is in scope: see the residual check in [`solve_milp`](@ref).
 """
 function bus_impedance(net::Network)
     nph = nphase_rows(net)
@@ -231,16 +251,16 @@ function bus_impedance(net::Network)
     Y = Matrix{ComplexF64}(net.Ybus[non_slack, non_slack])
 
     Z = zeros(ComplexF64, nph, nph)
-    Z[non_slack, non_slack] = inv(Y)
-
-    # inv() on a numerically singular block returns huge entries rather than
-    # throwing, and the damage surfaces far downstream. One matvec catches it.
-    probe = randn(ComplexF64, length(non_slack))
-    residual = norm(Y * (Z[non_slack, non_slack] * probe) - probe) / norm(probe)
-    residual < 1e-6 ||
-        error("The admittance matrix is numerically singular (relative residual " *
-              "$(round(residual, sigdigits=3)) on inversion). Check the feeder for " *
-              "an isolated island or a branch with near-zero impedance.")
+    # An exactly singular block throws from `inv` rather than returning garbage,
+    # so the only job here is to say what it means for a feeder.
+    try
+        Z[non_slack, non_slack] = inv(Y)
+    catch e
+        e isa LinearAlgebra.SingularException || rethrow()
+        error("The admittance matrix is singular with the slack removed, so no " *
+              "bus impedance exists. Check the feeder for an isolated island, or " *
+              "for a section reachable only through an ungrounded winding.")
+    end
     return Z
 end
 
@@ -336,7 +356,7 @@ function _assignment_constraints!(model, A, admissible, paths, slack, B, max_red
 end
 
 """
-The voltage-error budget, as one indicator-gated pair of inequalities per
+The voltage-error budget, as one big-M-relaxed pair of inequalities per
 (merge, phase, scenario). Returns how many were added.
 
 The phase loop is what makes this the three-phase model: a merge is checked on
@@ -344,9 +364,11 @@ every phase the *reduced* bus carries, against the same phase of the super-node,
 which `admissible_pairs` has already guaranteed carries them all. On a
 single-phase feeder the body runs once, giving the single-phase paper's
 constraint.
+
+`deviation` is the screening radius on `|e|`; see the header for how it sizes M.
 """
 function _annulus_constraints!(model, a, pairs, net::Network, C, Z, V, absV,
-    sel, Ē, approach, needed)
+    sel, Ē, approach, needed, deviation, safety)
 
     nph = nphase_rows(net)
     row_of = _phase_rows(net)
@@ -405,9 +427,14 @@ function _annulus_constraints!(model, a, pairs, net::Network, C, Z, V, absV,
                 ((mag_j - Ē)^2 - mag_i^2) / 2, ((mag_j + Ē)^2 - mag_i^2) / 2
             end
 
+            # M(a - 1) is 0 when the merge is selected, so the exact inequality
+            # applies, and -M when it is not, relaxing it past anything `w` can
+            # reach. Sizing it from the deviation radius is what keeps the second
+            # case vacuous without a constant anyone has to pick.
+            bound = (abs(real(V[ri, s])) + abs(imag(V[ri, s]))) * deviation[ri, k]
             w = aligned[(ri, k)]
-            @constraint(model, a[idx] => {w >= lower})
-            @constraint(model, a[idx] => {w <= upper})
+            @constraint(model, w >= lower + safety * (bound + abs(lower)) * (a[idx] - 1))
+            @constraint(model, w <= upper - safety * (bound + abs(upper)) * (a[idx] - 1))
             count_added += 2
         end
     end
@@ -506,7 +533,7 @@ end
 
 "Turn the `warm_start` option into an assignment the model can start from."
 function _resolve_warm_start(spec, net, V, Ē, admissible, tree, sel,
-    max_reduction, enforce_radiality, reach, prefer, time_limit)
+    max_reduction, enforce_radiality, reach, prefer, verbose, time_limit)
 
     spec isa AbstractMatrix && return Matrix{Float64}(spec)
     spec === :identity && return identity_assignment(net)
@@ -515,5 +542,5 @@ function _resolve_warm_start(spec, net, V, Ē, admissible, tree, sel,
 
     return zero_injection_warmstart(net, V, Ē, admissible, tree, sel;
         max_reduction=max_reduction, enforce_radiality=enforce_radiality,
-        reach=reach, prefer=prefer, time_limit=time_limit)
+        reach=reach, prefer=prefer, verbose=verbose, time_limit=time_limit)
 end

@@ -1,0 +1,13 @@
+{
+  "serialized_max_abs_yv_minus_i_pu": 6.669247855417677e-16,
+  "phase_node_count": 2721,
+  "ybus_nnz": 23493,
+  "bus_count": 907,
+  "sbase_mva": 0.8,
+  "scenario": "h001",
+  "independent_max_abs_kcl_pu": 6.108622669505245e-09,
+  "min_voltage_pu": 1.0450149499524737,
+  "max_voltage_pu": 1.0499269443900145,
+  "phase_nodes_below_0_5_pu": 0,
+  "converged": true
+}

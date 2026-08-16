@@ -140,7 +140,7 @@ const TEST3PH = joinpath(@__DIR__, "..", "data", "test3ph")
     @testset "reported metadata" begin
         sol = solve_milp(net4, V4, 0.01; hops=2, screen=false)
         @test sol.nbinaries > 0
-        @test sol.nindicators == 2 * sol.nbinaries * length(sol.scenarios)
+        @test sol.nannulus == 2 * sol.nbinaries * length(sol.scenarios)
         @test sol.screening === nothing
         @test sol.objective ≈ length(sol.kept)
         @test sol.solver in (:gurobi, :highs)
@@ -175,7 +175,7 @@ const TEST3PH = joinpath(@__DIR__, "..", "data", "test3ph")
             on = solve_milp(net, V, Ē; hops=3, screen=true)
             @test length(on.kept) == length(off.kept)
             @test annulus_violation(net, on.A, V, Ē) <= 0
-            @test on.nindicators <= off.nindicators
+            @test on.nannulus <= off.nannulus
             @test on.nbinaries <= off.nbinaries
         end
     end
@@ -264,6 +264,27 @@ const TEST3PH = joinpath(@__DIR__, "..", "data", "test3ph")
     @testset "max_reduction floors the network size" begin
         sol = solve_milp(net4, V4, 1.0; hops=3, max_reduction=0.25)
         @test length(sol.kept) >= 3
+    end
+
+    @testset "the operating point is the caller's to judge" begin
+        # `powerflow_residual` measures how far a V is from solving its own
+        # network, which is what bounds how fine a budget that V can certify.
+        # It is reported, not enforced: solve_milp accepts whatever it is given.
+        net = read_network_ybus(joinpath(@__DIR__, "..", "data", "ieee34"))
+        V = read_voltage(joinpath(@__DIR__, "..", "data", "ieee34"), net)
+        @test powerflow_residual(net, V) < 1e-9
+
+        skewed = V .* 1.02                       # plausible-looking, and wrong
+        @test powerflow_residual(net, skewed) > 0.01
+        @test solve_milp(net, skewed, 0.01; hops=3) isa MilpSolution
+        @test solve_milp(net, skewed, 0.1; hops=3) isa MilpSolution
+
+        # A well-conditioned inverse is not the same question: ieee123 inverts
+        # poorly (cond ~7e14) yet its operating point is sound.
+        poor = read_network_ybus(joinpath(@__DIR__, "..", "data", "ieee123"))
+        Vp = read_voltage(joinpath(@__DIR__, "..", "data", "ieee123"), poor)
+        @test OptiKRON.bus_impedance(poor) isa Matrix
+        @test powerflow_residual(poor, Vp) < 1e-6
     end
 
     @testset "bad input is rejected" begin

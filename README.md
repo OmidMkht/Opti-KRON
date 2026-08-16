@@ -115,11 +115,18 @@ A_radial, added = radialize(net, sol.A) # recover a radial equivalent
 ```
 
 The error budget is a *hard constraint*, not a penalty term: the solver returns
-the smallest network that respects it, or reports infeasibility. Because the
-model is checked against the linearized annulus, `annulus_violation` re-derives
-the original nonconvex constraint independently — pass it the scenarios the
-model did *not* see to find out how a reduction fitted to representative
-loadings holds up across the rest.
+the smallest network that respects it, or reports infeasibility.
+
+It is a hard constraint on the *linearized* annulus, though, and that distinction
+is why `annulus_violation` exists. The annulus is nonconvex, both linearizations
+bound the aligned error rather than the magnitude itself, and neither is robust to
+several merges landing at once — so an assignment can be optimal, at zero gap, and
+still miss the true constraint by a little. Measured across the shipped feeders it
+is rare and small: three runs in two hundred, all on `case141`, all under 0.4% of
+the budget. `annulus_violation` re-derives the original nonconvex constraint from
+the untouched sparse `Ybus` and is the check that actually certifies a reduction —
+run it. Passing it the scenarios the model did *not* see also tells you how a
+reduction fitted to representative loadings holds up across the rest.
 
 `V` is passed in rather than computed inside the solver, because the operating
 point is a modelling choice — a feeder with delta connections, ZIP loads or
@@ -142,11 +149,17 @@ laterals — so they exercise the phase-availability rules rather than behaving
 like single-phase equivalents. See [`data/README.md`](data/README.md) for the
 full description.
 
-Nine further benchmark networks ship alongside them: five single-phase MATPOWER
-feeders (`case69`, `case85`, `case141`, `case533mt`, `case1197`) with their
-reduced versions as `.m` files, and four published three-phase feeders (`ieee37`,
-`ieee123`, `european906`, `ieee8500`) carrying the operating point they were
-published with. See [`data/README.md`](data/README.md) for all of them.
+Ten further benchmark networks ship alongside them: five single-phase MATPOWER
+feeders (`case69`, `case85`, `case141`, `case533mt`, `case1197`) and five
+published three-phase feeders (`ieee34`, `ieee37`, `ieee123`, `european_lv`,
+`ieee8500`) carrying the operating point they were published with, along with
+their transformer, regulator, phase-shift, switch and capacitor tables. See
+[`data/README.md`](data/README.md) for all of them.
+
+Worked reductions live in
+[`reduced_networks/`](reduced_networks) — two per feeder, each recording the
+error threshold, hop limit and scenarios it was produced under, and each verified
+against the exact nonconvex annulus.
 
 ## Roadmap
 
@@ -160,10 +173,13 @@ published with. See [`data/README.md`](data/README.md) for all of them.
 - [x] Core: AC power flow, operating-point consistency check, error metrics
 - [x] `run_optikron.jl`: feeder → reduction → radial equivalent → accuracy
 - [x] MATPOWER import and export — reduce a `.m` case, get a `.m` case back
-- [x] Eleven benchmark feeders, single- and three-phase, up to 2501 buses
+- [x] Twelve benchmark feeders, single- and three-phase, up to 4876 buses
 - [x] Exhaustive search — CPU and GPU backends, same error model as the MILP
       (GPU is ~25x on a 907-bus feeder; CUDA optional, absent falls back to CPU)
-- [x] Preserve transformers, regulators and switches through a reduction, exactly
+- [x] Preserve transformers, regulators, phase shifters and switches through a
+      reduction, selectable per kind
+- [x] Re-export the IEEE cases at ~14 decimals, then regenerate their reduced
+      examples
 
 ## Citation
 
