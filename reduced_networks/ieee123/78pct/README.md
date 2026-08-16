@@ -1,50 +1,33 @@
 # ieee123 — 78pct
 
-`130` buses reduced to `29` super-nodes (77.7%), radial, CSV format.
-
-## How it was produced
+130 → 29 buses (77.7%), radial, CSV.
 
 | | |
 |---|---|
-| Error threshold | `Ē = 0.006` per unit. |
-| Backend | MILP, proven optimal (`:milp`) |
-| Hops | `10` |
-| Scenarios enforced | all 1 — the case carries a single loading |
-| Radiality | enforced in the model (`:in_model`) |
-| Devices | switches, regulators and phase shifters preserved |
+| Ē | 0.006 |
+| Backend | MILP, optimal |
+| Hops | 10 |
+| Scenarios | 1 of 1 |
+| Radiality | `:in_model` |
+| Devices | switches, regulators, phase shifters preserved |
 
 ```julia
-result = optikron("ieee123"; Ē = 0.006, hops = 10,
-                  radiality = :in_model)
+optikron("ieee123"; Ē=0.006, hops=10, radiality=:in_model)
 ```
 
-## Verified
+**Violation** (enforced): `-1.11e-04` — inside budget.  
 
-Re-checked against the exact nonconvex annulus on the untouched sparse
-`Ybus`, not against the linearisation the solver used:
+## OpenDSS
 
-- Enforced scenarios: worst violation `-1.11e-04` — inside budget.
-
-## Solved as OpenDSS
-
-`dss/` is this reduction as a self-contained OpenDSS circuit,
-rebuilt by `converter/build_reduced_dss.py` and solved.
-
-- Power aggregation error: `0.0` — exact.
-- Synthesized Kron `Ybus` vs this reduction's: `1.3249339373102918e-10` relative.
-- **Solved voltage error against the original: `5.20e-03` pu.**
-
-  Inside the certified budget even under a full constant-power re-solve.
-
-  Per-node detail is in `dss/validation.csv`.
+Solved error `5.20e-03` pu — inside `Ē`.
 
 ## Files
 
-- `assignment.csv` — the reduction map, `bus_id → super_node`
-- `bus.csv` — surviving buses and their phasing
-- `dss` — the same reduction as a solved OpenDSS circuit
-- `load.csv` — injections after each eliminated bus hands its load over
-- `voltage.csv` — the operating point at the surviving buses
-- `ybus.csv` — the Schur complement
+- `assignment.csv` — reduction map
+- `bus.csv` — surviving buses
+- `dss` — solved OpenDSS circuit
+- `load.csv` — injections post-reduction
+- `voltage.csv` — operating point
+- `ybus.csv` — Schur complement
 
-Load it with `load_case("reduced_networks/ieee123/78pct")`.
+`load_case("reduced_networks/ieee123/78pct")`

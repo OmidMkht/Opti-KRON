@@ -1,38 +1,29 @@
 # R100 — 91pct
 
-`100` buses reduced to `9` super-nodes (91.0%), radial, CSV format.
-
-## How it was produced
+100 → 9 buses (91.0%), radial, CSV.
 
 | | |
 |---|---|
-| Error threshold | `Ē = 0.005` per unit. |
-| Backend | MILP, proven optimal (`:milp`) |
-| Hops | `10` |
-| Scenarios enforced | 67 and 91 of 168 — peak and minimum hour |
-| Radiality | enforced in the model (`:in_model`) |
-| Devices | switches, regulators and phase shifters preserved |
+| Ē | 0.005 |
+| Backend | MILP, optimal |
+| Hops | 10 |
+| Scenarios | 67, 91 of 168 |
+| Radiality | `:in_model` |
+| Devices | switches, regulators, phase shifters preserved |
 
 ```julia
-result = optikron("R100"; Ē = 0.005, hops = 10, scenarios = [67, 91],
-                  radiality = :in_model)
+optikron("R100"; Ē=0.005, hops=10, scenarios=[67, 91], radiality=:in_model)
 ```
 
-## Verified
-
-Re-checked against the exact nonconvex annulus on the untouched sparse
-`Ybus`, not against the linearisation the solver used:
-
-- Enforced scenarios: worst violation `-2.36e-04` — inside budget.
-- Held-out scenarios (166 of 168): `+6.59e-03`. **Not certified** — the budget
-  was never enforced here, and the error reaches 2.3× `Ē` across them.
+**Violation** (enforced): `-2.36e-04` — inside budget.  
+**Violation** (held-out, 166 of 168): `+6.59e-03` — 2.3× `Ē`, not certified.
 
 ## Files
 
-- `assignment.csv` — the reduction map, `bus_id → super_node`
-- `bus.csv` — surviving buses and their phasing
-- `load.csv` — injections after each eliminated bus hands its load over
-- `voltage.csv` — the operating point at the surviving buses
-- `ybus.csv` — the Schur complement
+- `assignment.csv` — reduction map
+- `bus.csv` — surviving buses
+- `load.csv` — injections post-reduction
+- `voltage.csv` — operating point
+- `ybus.csv` — Schur complement
 
-Load it with `load_case("reduced_networks/R100/91pct")`.
+`load_case("reduced_networks/R100/91pct")`

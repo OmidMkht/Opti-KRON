@@ -47,12 +47,9 @@ All but `ieee8500` are proven optimal by the MILP. `ieee8500` does not close at
 hop limit, same error budget, 263s and 303s. `dss_build.json` records the
 OpenDSS build.
 
-`ieee8500` ships as **map only** — `assignment.csv` plus the bus, load and
-voltage tables, without `ybus.csv`. Kron reduction fills in, and at this size the
-Schur complement runs to 289 MB and 631 MB. Measured, 99.5% of those entries are
-round-off: only 28312 of 5390534 exceed 1e-12 of the largest, and the count is
-unchanged at 1e-10 and 1e-8. Each level's note carries the one-liner that rebuilds
-it with `kron_reduce`.
+`ieee8500` ships as **map only** — no `ybus.csv`. Kron fill-in runs to 289–631 MB
+there, 99.5% round-off; each level's note carries the one-liner that rebuilds it
+with `kron_reduce`.
 
 ## Every one is verified
 
@@ -72,58 +69,18 @@ Three qualifications worth reading before using one:
   anywhere in Ē = 0.001–0.01, because its annulus never binds — geometry and the
   hop limit decide the answer. Its two examples are therefore separated by `hops`,
   not by error threshold.
-- **A solved OpenDSS round trip is a harder test than the budget**, and on
-  `ieee37` it is much harder — see below.
+- **A solved OpenDSS round trip is a harder test than the budget** — on `ieee37`
+  it runs 28× over. Not a conversion defect; see
+  [`converter/README.md`](../converter/README.md#the-round-trip-is-a-harder-test-than-the-budget).
 
 ## OpenDSS form
 
 Where a feeder came from OpenDSS, its reduction also ships as a self-contained,
-solved OpenDSS circuit in `dss/`, rebuilt by
-[`converter/build_reduced_dss.py`](../converter/build_reduced_dss.py). Each one
-carries `Master.dss`, the element files, `bus_mapping.csv`, `report.json`, and
+solved OpenDSS circuit in `dss/` — `Master.dss`, the element files, and
 `validation.csv` giving the solved-versus-original voltage at every surviving
-super-node.
-
-That solved error is **not** the certified budget. The budget holds a
-constant-current linearisation; OpenDSS re-solves with constant-power loads and
-the real winding connections:
-
-| Case | Level | Ē | Solved DSS error | |
-|---|---|---|---|---|
-| `european_lv` | 91pct | not binding | 1.6e-04 | well inside |
-| `european_lv` | 98pct | not binding | 5.1e-04 | well inside |
-| `ieee123` | 57pct | 0.002 | 9.4e-04 | inside |
-| `ieee123` | 78pct | 0.006 | 5.2e-03 | inside |
-| `ieee34` | 51pct | 0.003 | 9.4e-03 | **3× over** |
-| `ieee34` | 59pct | 0.010 | 1.0e-02 | at the edge |
-| `ieee37` | 62pct | 0.003 | 8.4e-02 | **28× over** |
-| `ieee37` | 74pct | 0.008 | 8.4e-02 | **11× over** |
-
-The conversion itself is exact — power aggregation error `0.0` and a synthesized
-Kron `Ybus` matching to `2.9e-16` on `ieee37`, the *worst* row of the table. The
-gradient tracks how far each feeder sits from the constant-current assumption:
-`european_lv` is 98% unloaded, `ieee123` is wye-connected, and `ieee37` is the
-one all-delta IEEE feeder, where load responds to line-to-line voltage.
-
-### Why `ieee8500` has no `dss/`
-
-A known limitation, not a failure to try. The reduction absorbs `ieee8500`'s 2354
-service transformers rather than pinning them — pinning would fix 2400 buses, 49%
-of the feeder, as a hard ceiling. The OpenDSS converter needs both terminals of a
-preserved transformer to survive, so a reduction that has eliminated them cannot
-be re-instantiated as a circuit.
-
-Preserving them makes the conversion possible and costs real reduction, measured
-on this feeder with the GPU search:
-
-| Ē | absorbed (shipped) | transformers pinned |
-|---|---|---|
-| 0.005 | 42% | 31% |
-| 0.020 | 54% | 41% |
-
-Eleven to thirteen points. The shipped levels keep the reduction; run
-`optikron("ieee8500"; preserve = (:phase_shift, :regulator, :switch, :transformer),
-backend = :search_gpu)` if you would rather have the circuit.
+super-node. `ieee8500` has none; see
+[`converter/README.md`](../converter/README.md#the-ieee8500-limitation) for why
+and what it costs to get one anyway.
 
 ## Formats
 
