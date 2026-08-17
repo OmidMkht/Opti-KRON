@@ -5,13 +5,44 @@
   "radial_edge_count": 20,
   "preserved_transformer_count": 1,
   "equipment_mapping_row_count": 4,
+  "load_representation": "nodal-wye",
+  "voltage_level_audit": {
+    "assignment_bus_mismatch_count": 0,
+    "equipment_terminal_mismatch_counts": {},
+    "location_only_voltage_level_valid": true,
+    "per_unit_transformed_equivalent_valid": true,
+    "incompatible_phase_domain_assignment_count": 0,
+    "examples": [],
+    "transformed_transformer_winding_count": 0
+  },
+  "equipment_per_unit_transformation": {
+    "transformed_equipment_counts": {},
+    "transformed_equipment_count": 0,
+    "examples": []
+  },
+  "reduced_ybus": {
+    "source": "csv",
+    "relative_sparsification_tolerance": null,
+    "phase_node_count": 63,
+    "nnz": 3297
+  },
+  "relocated_equipment_counts": {},
+  "original_load_model_counts": {},
+  "relocated_physical_shunt_count": 0,
+  "mapped_load_count": 55,
+  "mapped_solved_load_p_pu": 0.013144541357210356,
+  "mapped_solved_load_q_pu": 0.004320405715185126,
   "sbase_mva": 0.8,
   "aggregation_max_abs_power_error_pu": 0.0,
   "target_vs_full_max_complex_voltage_error_pu": 0.0,
-  "max_voltage_magnitude_error_pu": 0.0005117877736293686,
-  "max_voltage_magnitude_error_bus": "425",
-  "max_voltage_magnitude_error_phase": "b",
-  "max_complex_voltage_error_pu": 0.0005160173854454114,
-  "max_abs_synthesized_ybus_error_pu": 2.5503811541793446e-10,
-  "relative_synthesized_ybus_error": 1.7839580851209356e-13
+  "max_voltage_magnitude_error_pu": 0.0008828380515115697,
+  "max_voltage_magnitude_error_bus": "550",
+  "max_voltage_magnitude_error_phase": "a",
+  "max_complex_voltage_error_pu": 0.0009657292761747591,
+  "max_abs_synthesized_ybus_error_pu": 3.5756914847237484e-11,
+  "relative_synthesized_ybus_error": 2.5011491806304458e-14,
+  "target_phase_nodes_below_0_5_pu": 0,
+  "max_energized_voltage_magnitude_error_pu": 0.0008828380515115697,
+  "max_energized_voltage_magnitude_error_bus": "550",
+  "max_energized_voltage_magnitude_error_phase": "a"
 }

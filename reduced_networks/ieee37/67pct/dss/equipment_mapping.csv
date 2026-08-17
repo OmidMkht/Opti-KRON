@@ -1,0 +1,13 @@
+equipment_class,equipment_id,terminal,original_bus,reduced_bus
+transformer,subxf,from,sourcebus,sourcebus
+transformer,subxf,to,799,799
+transformer,xfm1,from,709,730
+transformer,xfm1,to,775,730
+transformer,reg1a,from,799,799
+transformer,reg1a,to,799r,799r
+transformer,reg1c,from,799,799
+transformer,reg1c,to,799r,799r
+regulator,creg1a,from,799,799
+regulator,creg1a,regulated,799r,799r
+regulator,creg1c,from,799,799
+regulator,creg1c,regulated,799r,799r

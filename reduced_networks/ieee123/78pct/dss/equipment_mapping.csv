@@ -1,5 +1,5 @@
 equipment_class,equipment_id,terminal,original_bus,reduced_bus
-capacitor,c83,bus,83,83
+capacitor,c83,bus,83,80
 capacitor,c88a,bus,88,67
 capacitor,c90b,bus,90,67
 capacitor,c92c,bus,92,67
@@ -31,7 +31,7 @@ switch,sw5,from,97,97
 switch,sw5,to,197,197
 switch,sw6,from,61,61
 switch,sw6,to,61s,61s
-switch,sw7,from,151,35
+switch,sw7,from,151,40
 switch,sw7,to,300,197
 switch,sw8,from,54,52
 switch,sw8,to,94,67

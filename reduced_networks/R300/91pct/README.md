@@ -1,22 +1,35 @@
 # R300 — 91pct
 
-300 → 26 buses (91.3%), radial, CSV.
+300 → 26 buses (91.3%), radial, CSV/MATPOWER, MILP.
 
 | | |
 |---|---|
 | Ē | 0.003 |
-| Backend | MILP, optimal |
+| Backend | MILP, proven optimal |
 | Hops | 10 |
-| Scenarios | 67, 91 of 168 |
+| Scenarios | 67, 91 |
 | Radiality | `:in_model` |
-| Devices | switches, regulators, phase shifters preserved |
+| Preserved | `:required` — center-tap transformers, phase shifters, regulators, switches |
+
+## Rebuild it
+
+Set these in [`run_optikron.jl`](../../../run_optikron.jl), then run
+`julia --project=. run_optikron.jl`:
 
 ```julia
-optikron("R300"; Ē=0.003, hops=10, scenarios=[67, 91], radiality=:in_model)
+case      = "R300"
+Ē         = 0.003
+scenarios = [67, 91]
+hops      = 10
+preserve  = :required
+radiality = :in_model
+export_to = "reduced_networks/R300/91pct"
 ```
 
-**Violation** (enforced): `-3.92e-04` — inside budget.  
-**Violation** (held-out, 166 of 168): `+1.09e-02` — 4.6× `Ē`, not certified.
+## Accuracy
+
+- **Constant-PQ** (what the budget certifies): `2.986e-03` pu, 100% of `Ē`.
+- Held-out scenarios: `1.393e-02` pu — **not certified**, 4.6× `Ē`.
 
 ## Files
 

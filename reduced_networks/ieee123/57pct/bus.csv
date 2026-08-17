@@ -10,9 +10,9 @@ bus_id,phases,base_kv,type
 13,abc,1,pq
 9r,a,1,pq
 14,a,1,pq
+34,c,1,pq
 18,abc,1,pq
-15,c,1,pq
-20,a,1,pq
+19,a,1,pq
 23,abc,1,pq
 25,abc,1,pq
 25r,ac,1,pq

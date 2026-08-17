@@ -153,7 +153,8 @@ Ten further benchmark networks ship alongside them: five single-phase MATPOWER
 feeders (`case69`, `case85`, `case141`, `case533mt`, `case1197`) and five
 published three-phase feeders (`ieee34`, `ieee37`, `ieee123`, `european_lv`,
 `ieee8500`) carrying the operating point they were published with, along with
-their transformer, regulator, phase-shift, switch and capacitor tables. See
+their transformer, center-tapped-transformer, regulator, phase-shift, switch and
+capacitor tables. See
 [`data/README.md`](data/README.md) for all of them.
 
 Worked reductions live in

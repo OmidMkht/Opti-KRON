@@ -1,2 +1,2 @@
 ! Preserved physical transformers and solved regulator taps
-new Transformer.tr1 phases=3 windings=2 buses=[sourcebus, 1, ] conns=[delta, wye, ] kvs=[11, 0.416, ] kvas=[800, 800, ] taps=[1, 1, ] %rs=[0.2, 0.2, ] xhl=4 xht=35 xlt=30 %noloadloss=0 %imag=0 ppm_antifloat=1
+new Transformer.tr1 phases=3 windings=2 buses=[sourcebus, 1, ] conns=[delta, wye, ] kvs=[11, 0.416, ] kvas=[800, 800, ] taps=[1, 1, ] %rs=[0.2, 0.2, ] xhl=4 xht=35 xlt=30 %noloadloss=0 %imag=0 ppm_antifloat=1 kvs=[11 0.416]

@@ -1,0 +1,3 @@
+! Original shunt models relocated and rebased in per unit
+new Capacitor.c844 Bus1="852r" Phases=3 kvar=[300] kV=24.9 NormAmps=9.390636908505959 EmergAmps=12.5208492113413
+new Capacitor.c848 Bus1="852r" Phases=3 kvar=[450] kV=24.9 NormAmps=14.0859553627589 EmergAmps=18.7812738170119

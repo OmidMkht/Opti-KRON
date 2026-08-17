@@ -1,61 +1,61 @@
 ! Phase-wise constant-PQ injections aggregated by assignment; positive DSS power is consumption.
-new Load.agg_4 phases=1 bus1=1.1 conn=wye kv=0.2401777119828843 kw=-9.527999999999999e-10 kvar=-8.575999999999999e-10 model=1
-new Load.agg_5 phases=1 bus1=1.2 conn=wye kv=0.2401777119828843 kw=-6.367999999999999e-10 kvar=-1.0016e-09 model=1
-new Load.agg_6 phases=1 bus1=1.3 conn=wye kv=0.2401777119828843 kw=1.248000000000001e-10 kvar=-3.872e-10 model=1
-new Load.agg_7 phases=1 bus1=15.1 conn=wye kv=0.2401777119828843 kw=0.5874998905512 kvar=0.193100369092 model=1
-new Load.agg_8 phases=1 bus1=15.2 conn=wye kv=0.2401777119828843 kw=1.1885910373 kvar=0.3906718645255999 model=1
-new Load.agg_9 phases=1 bus1=15.3 conn=wye kv=0.2401777119828843 kw=2.40000000000004e-12 kvar=2.319999999999997e-11 model=1
-new Load.agg_10 phases=1 bus1=37.1 conn=wye kv=0.2401777119828843 kw=0.4289804858039999 kvar=0.1409950749704 model=1
-new Load.agg_11 phases=1 bus1=37.2 conn=wye kv=0.2401777119828843 kw=-5.592000000000001e-10 kvar=8.320000000000008e-11 model=1
-new Load.agg_12 phases=1 bus1=37.3 conn=wye kv=0.2401777119828843 kw=-1.9648e-09 kvar=5.296e-10 model=1
-new Load.agg_13 phases=1 bus1=43.1 conn=wye kv=0.2401777119828843 kw=-9.144000000000002e-10 kvar=-1.3512e-09 model=1
-new Load.agg_14 phases=1 bus1=43.2 conn=wye kv=0.2401777119828843 kw=8.055999999999999e-09 kvar=3.123199999999999e-09 model=1
-new Load.agg_15 phases=1 bus1=43.3 conn=wye kv=0.2401777119828843 kw=-3.686400000000001e-09 kvar=5.392000000000002e-10 model=1
-new Load.agg_16 phases=1 bus1=101.1 conn=wye kv=0.2401777119828843 kw=0.3049560271472 kvar=0.1002319683224 model=1
-new Load.agg_17 phases=1 bus1=101.2 conn=wye kv=0.2401777119828843 kw=0.1747420123928 kvar=0.0574393589568 model=1
-new Load.agg_18 phases=1 bus1=101.3 conn=wye kv=0.2401777119828843 kw=1.1196403543976 kvar=0.3680093105216 model=1
-new Load.agg_19 phases=1 bus1=114.1 conn=wye kv=0.2401777119828843 kw=0.2278445264744 kvar=0.07488619411279999 model=1
-new Load.agg_20 phases=1 bus1=114.2 conn=wye kv=0.2401777119828843 kw=5.112000000000001e-10 kvar=4.071999999999999e-10 model=1
-new Load.agg_21 phases=1 bus1=114.3 conn=wye kv=0.2401777119828843 kw=3.376000000000001e-10 kvar=4.88e-11 model=1
-new Load.agg_22 phases=1 bus1=133.1 conn=wye kv=0.2401777119828843 kw=9.015999999999998e-10 kvar=2.581599999999999e-09 model=1
-new Load.agg_23 phases=1 bus1=133.2 conn=wye kv=0.2401777119828843 kw=0.1182485771296 kvar=0.0388696563992 model=1
-new Load.agg_24 phases=1 bus1=133.3 conn=wye kv=0.2401777119828843 kw=0.1087845780792 kvar=0.0357584638136 model=1
-new Load.agg_25 phases=1 bus1=215.1 conn=wye kv=0.2401777119828843 kw=0.0487950387984 kvar=0.0160343695136 model=1
-new Load.agg_26 phases=1 bus1=215.2 conn=wye kv=0.2401777119828843 kw=-1.864e-10 kvar=-2.512e-10 model=1
-new Load.agg_27 phases=1 bus1=215.3 conn=wye kv=0.2401777119828843 kw=0.0576512103504 kvar=0.0189506910808 model=1
-new Load.agg_28 phases=1 bus1=280.1 conn=wye kv=0.2401777119828843 kw=0.1137964865072 kvar=0.03739498397919999 model=1
-new Load.agg_29 phases=1 bus1=280.2 conn=wye kv=0.2401777119828843 kw=0.6540789300104001 kvar=0.2149863224280001 model=1
-new Load.agg_30 phases=1 bus1=280.3 conn=wye kv=0.2401777119828843 kw=0.05330644155120001 kvar=0.0175227713088 model=1
-new Load.agg_31 phases=1 bus1=373.1 conn=wye kv=0.2401777119828843 kw=-1.4456e-09 kvar=2.832e-10 model=1
-new Load.agg_32 phases=1 bus1=373.2 conn=wye kv=0.2401777119828843 kw=-2.127999999999999e-10 kvar=2.632e-10 model=1
-new Load.agg_33 phases=1 bus1=373.3 conn=wye kv=0.2401777119828843 kw=0.25775073608 kvar=0.0847238059048 model=1
-new Load.agg_34 phases=1 bus1=397.1 conn=wye kv=0.2401777119828843 kw=6.764799999999999e-09 kvar=-3.495200000000001e-09 model=1
-new Load.agg_35 phases=1 bus1=397.2 conn=wye kv=0.2401777119828843 kw=0.0368101011888 kvar=0.0121011207792 model=1
-new Load.agg_36 phases=1 bus1=397.3 conn=wye kv=0.2401777119828843 kw=2.269599999999999e-09 kvar=2.039200000000001e-09 model=1
-new Load.agg_37 phases=1 bus1=425.1 conn=wye kv=0.2401777119828843 kw=0.301744662708 kvar=0.0991653972024 model=1
-new Load.agg_38 phases=1 bus1=425.2 conn=wye kv=0.2401777119828843 kw=-3.032e-10 kvar=-7.839999999999998e-11 model=1
-new Load.agg_39 phases=1 bus1=425.3 conn=wye kv=0.2401777119828843 kw=-4.607999999999998e-10 kvar=-4.959999999999998e-11 model=1
-new Load.agg_40 phases=1 bus1=490.1 conn=wye kv=0.2401777119828843 kw=1.0855672077504 kvar=0.3568033314656001 model=1
-new Load.agg_41 phases=1 bus1=490.2 conn=wye kv=0.2401777119828843 kw=0.1549096476088 kvar=0.0509233504032 model=1
-new Load.agg_42 phases=1 bus1=490.3 conn=wye kv=0.2401777119828843 kw=0.2719832398512 kvar=0.08939822846959999 model=1
-new Load.agg_43 phases=1 bus1=578.1 conn=wye kv=0.2401777119828843 kw=-1.507200000000001e-09 kvar=2.392e-10 model=1
-new Load.agg_44 phases=1 bus1=578.2 conn=wye kv=0.2401777119828843 kw=0.2467493116224 kvar=0.0811044625136 model=1
-new Load.agg_45 phases=1 bus1=578.3 conn=wye kv=0.2401777119828843 kw=0.06090074288960002 kvar=0.02001907168 model=1
-new Load.agg_46 phases=1 bus1=623.1 conn=wye kv=0.2401777119828843 kw=1.1048e-09 kvar=6.640000000000002e-11 model=1
-new Load.agg_47 phases=1 bus1=623.2 conn=wye kv=0.2401777119828843 kw=0.0313940365712 kvar=0.0103209763504 model=1
-new Load.agg_48 phases=1 bus1=623.3 conn=wye kv=0.2401777119828843 kw=4.344e-10 kvar=2.784000000000001e-10 model=1
-new Load.agg_49 phases=1 bus1=666.1 conn=wye kv=0.2401777119828843 kw=8.480000000000001e-10 kvar=5.599999999999982e-12 model=1
-new Load.agg_50 phases=1 bus1=666.2 conn=wye kv=0.2401777119828843 kw=0.04651777196880001 kvar=0.0152920186576 model=1
-new Load.agg_51 phases=1 bus1=666.3 conn=wye kv=0.2401777119828843 kw=0.1109182767368 kvar=0.03646121939519999 model=1
-new Load.agg_52 phases=1 bus1=689.1 conn=wye kv=0.2401777119828843 kw=0.1614682849616 kvar=0.053057874468 model=1
-new Load.agg_53 phases=1 bus1=689.2 conn=wye kv=0.2401777119828843 kw=2.488e-10 kvar=1.184e-10 model=1
-new Load.agg_54 phases=1 bus1=689.3 conn=wye kv=0.2401777119828843 kw=-3.464000000000001e-10 kvar=-1.999999999999999e-11 model=1
-new Load.agg_55 phases=1 bus1=707.1 conn=wye kv=0.2401777119828843 kw=8.064000000000001e-10 kvar=3.280000000000002e-10 model=1
-new Load.agg_56 phases=1 bus1=707.2 conn=wye kv=0.2401777119828843 kw=0.9217126888992001 kvar=0.3029554507824 model=1
-new Load.agg_57 phases=1 bus1=707.3 conn=wye kv=0.2401777119828843 kw=0.4967016482488 kvar=0.1632616631048 model=1
-new Load.agg_58 phases=1 bus1=733.1 conn=wye kv=0.2401777119828843 kw=0.1094395603488 kvar=0.03596124454879999 model=1
-new Load.agg_59 phases=1 bus1=733.2 conn=wye kv=0.2401777119828843 kw=-3.968000000000001e-10 kvar=-2.447999999999999e-10 model=1
-new Load.agg_60 phases=1 bus1=733.3 conn=wye kv=0.2401777119828843 kw=-7.503999999999998e-10 kvar=-2.056e-10 model=1
-new Load.agg_61 phases=1 bus1=779.1 conn=wye kv=0.2401777119828843 kw=0.6484428278808 kvar=0.2131250181184 model=1
-new Load.agg_62 phases=1 bus1=779.2 conn=wye kv=0.2401777119828843 kw=0.3857028616895999 kvar=0.1267788763384 model=1
-new Load.agg_63 phases=1 bus1=779.3 conn=wye kv=0.2401777119828843 kw=6.416e-10 kvar=-2.800000000000006e-11 model=1
+new Load.agg_4 phases=1 bus1=1.1 conn=wye kv=0.2401777119828843 kw=-9.527999999999999e-10 kvar=-8.575999999999999e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_5 phases=1 bus1=1.2 conn=wye kv=0.2401777119828843 kw=-6.367999999999999e-10 kvar=-1.0016e-09 model=1 vminpu=0 vmaxpu=2
+new Load.agg_6 phases=1 bus1=1.3 conn=wye kv=0.2401777119828843 kw=1.248000000000001e-10 kvar=-3.872e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_7 phases=1 bus1=15.1 conn=wye kv=0.2401777119828843 kw=0.5874998905512 kvar=0.193100369092 model=1 vminpu=0 vmaxpu=2
+new Load.agg_8 phases=1 bus1=15.2 conn=wye kv=0.2401777119828843 kw=1.1885910373 kvar=0.3906718645255999 model=1 vminpu=0 vmaxpu=2
+new Load.agg_9 phases=1 bus1=15.3 conn=wye kv=0.2401777119828843 kw=2.40000000000004e-12 kvar=2.319999999999997e-11 model=1 vminpu=0 vmaxpu=2
+new Load.agg_10 phases=1 bus1=37.1 conn=wye kv=0.2401777119828843 kw=0.4289804858039999 kvar=0.1409950749704 model=1 vminpu=0 vmaxpu=2
+new Load.agg_11 phases=1 bus1=37.2 conn=wye kv=0.2401777119828843 kw=-5.592000000000001e-10 kvar=8.320000000000008e-11 model=1 vminpu=0 vmaxpu=2
+new Load.agg_12 phases=1 bus1=37.3 conn=wye kv=0.2401777119828843 kw=-1.9648e-09 kvar=5.296e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_13 phases=1 bus1=43.1 conn=wye kv=0.2401777119828843 kw=-9.144000000000002e-10 kvar=-1.3512e-09 model=1 vminpu=0 vmaxpu=2
+new Load.agg_14 phases=1 bus1=43.2 conn=wye kv=0.2401777119828843 kw=8.055999999999999e-09 kvar=3.123199999999999e-09 model=1 vminpu=0 vmaxpu=2
+new Load.agg_15 phases=1 bus1=43.3 conn=wye kv=0.2401777119828843 kw=-3.686400000000001e-09 kvar=5.392000000000002e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_16 phases=1 bus1=101.1 conn=wye kv=0.2401777119828843 kw=0.3049560271472 kvar=0.1002319683224 model=1 vminpu=0 vmaxpu=2
+new Load.agg_17 phases=1 bus1=101.2 conn=wye kv=0.2401777119828843 kw=0.1747420123928 kvar=0.0574393589568 model=1 vminpu=0 vmaxpu=2
+new Load.agg_18 phases=1 bus1=101.3 conn=wye kv=0.2401777119828843 kw=1.1196403543976 kvar=0.3680093105216 model=1 vminpu=0 vmaxpu=2
+new Load.agg_19 phases=1 bus1=114.1 conn=wye kv=0.2401777119828843 kw=0.2278445263912 kvar=0.07488619408160001 model=1 vminpu=0 vmaxpu=2
+new Load.agg_20 phases=1 bus1=114.2 conn=wye kv=0.2401777119828843 kw=4.48e-10 kvar=4.567999999999999e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_21 phases=1 bus1=114.3 conn=wye kv=0.2401777119828843 kw=2.423999999999999e-10 kvar=3.759999999999995e-11 model=1 vminpu=0 vmaxpu=2
+new Load.agg_22 phases=1 bus1=145.1 conn=wye kv=0.2401777119828843 kw=9.847999999999999e-10 kvar=2.6128e-09 model=1 vminpu=0 vmaxpu=2
+new Load.agg_23 phases=1 bus1=145.2 conn=wye kv=0.2401777119828843 kw=0.1182485771928 kvar=0.0388696563496 model=1 vminpu=0 vmaxpu=2
+new Load.agg_24 phases=1 bus1=145.3 conn=wye kv=0.2401777119828843 kw=0.1087845781744 kvar=0.0357584638248 model=1 vminpu=0 vmaxpu=2
+new Load.agg_25 phases=1 bus1=215.1 conn=wye kv=0.2401777119828843 kw=0.0487950387984 kvar=0.0160343695136 model=1 vminpu=0 vmaxpu=2
+new Load.agg_26 phases=1 bus1=215.2 conn=wye kv=0.2401777119828843 kw=-1.864e-10 kvar=-2.512e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_27 phases=1 bus1=215.3 conn=wye kv=0.2401777119828843 kw=0.0576512103504 kvar=0.0189506910808 model=1 vminpu=0 vmaxpu=2
+new Load.agg_28 phases=1 bus1=280.1 conn=wye kv=0.2401777119828843 kw=0.1137964887791999 kvar=0.03739498408319999 model=1 vminpu=0 vmaxpu=2
+new Load.agg_29 phases=1 bus1=280.2 conn=wye kv=0.2401777119828843 kw=0.6540789285880001 kvar=0.2149863229688 model=1 vminpu=0 vmaxpu=2
+new Load.agg_30 phases=1 bus1=280.3 conn=wye kv=0.2401777119828843 kw=0.05330644174240002 kvar=0.0175227718104 model=1 vminpu=0 vmaxpu=2
+new Load.agg_31 phases=1 bus1=340.1 conn=wye kv=0.2401777119828843 kw=-2.5272e-09 kvar=-9.600000000000028e-11 model=1 vminpu=0 vmaxpu=2
+new Load.agg_32 phases=1 bus1=340.2 conn=wye kv=0.2401777119828843 kw=1.32e-09 kvar=-7.928000000000001e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_33 phases=1 bus1=340.3 conn=wye kv=0.2401777119828843 kw=0.05873404068720001 kvar=0.0193066983072 model=1 vminpu=0 vmaxpu=2
+new Load.agg_34 phases=1 bus1=384.1 conn=wye kv=0.2401777119828843 kw=5.574400000000003e-09 kvar=-3.220000000000002e-09 model=1 vminpu=0 vmaxpu=2
+new Load.agg_35 phases=1 bus1=384.2 conn=wye kv=0.2401777119828843 kw=0.03681010107839999 kvar=0.0121011212944 model=1 vminpu=0 vmaxpu=2
+new Load.agg_36 phases=1 bus1=384.3 conn=wye kv=0.2401777119828843 kw=0.1990166974712 kvar=0.06541710913520001 model=1 vminpu=0 vmaxpu=2
+new Load.agg_37 phases=1 bus1=425.1 conn=wye kv=0.2401777119828843 kw=1.387311871911999 kvar=0.4559687292072 model=1 vminpu=0 vmaxpu=2
+new Load.agg_38 phases=1 bus1=425.2 conn=wye kv=0.2401777119828843 kw=-4.824e-10 kvar=-9.519999999999999e-11 model=1 vminpu=0 vmaxpu=2
+new Load.agg_39 phases=1 bus1=425.3 conn=wye kv=0.2401777119828843 kw=-1.0592e-09 kvar=-1.519999999999985e-11 model=1 vminpu=0 vmaxpu=2
+new Load.agg_40 phases=1 bus1=550.1 conn=wye kv=0.2401777119828843 kw=-1.4536e-09 kvar=-5.391999999999994e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_41 phases=1 bus1=550.2 conn=wye kv=0.2401777119828843 kw=0.154909647788 kvar=0.05092335042 model=1 vminpu=0 vmaxpu=2
+new Load.agg_42 phases=1 bus1=550.3 conn=wye kv=0.2401777119828843 kw=0.2719832404496001 kvar=0.08939822843520001 model=1 vminpu=0 vmaxpu=2
+new Load.agg_43 phases=1 bus1=578.1 conn=wye kv=0.2401777119828843 kw=-1.507200000000001e-09 kvar=2.392e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_44 phases=1 bus1=578.2 conn=wye kv=0.2401777119828843 kw=0.2467493116224 kvar=0.0811044625136 model=1 vminpu=0 vmaxpu=2
+new Load.agg_45 phases=1 bus1=578.3 conn=wye kv=0.2401777119828843 kw=0.06090074288960002 kvar=0.02001907168 model=1 vminpu=0 vmaxpu=2
+new Load.agg_46 phases=1 bus1=623.1 conn=wye kv=0.2401777119828843 kw=1.1048e-09 kvar=6.640000000000002e-11 model=1 vminpu=0 vmaxpu=2
+new Load.agg_47 phases=1 bus1=623.2 conn=wye kv=0.2401777119828843 kw=0.0313940365712 kvar=0.0103209763504 model=1 vminpu=0 vmaxpu=2
+new Load.agg_48 phases=1 bus1=623.3 conn=wye kv=0.2401777119828843 kw=4.344e-10 kvar=2.784000000000001e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_49 phases=1 bus1=666.1 conn=wye kv=0.2401777119828843 kw=9.144000000000001e-10 kvar=-2.351999999999999e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_50 phases=1 bus1=666.2 conn=wye kv=0.2401777119828843 kw=0.04651777186160001 kvar=0.0152920187672 model=1 vminpu=0 vmaxpu=2
+new Load.agg_51 phases=1 bus1=666.3 conn=wye kv=0.2401777119828843 kw=0.1109182765575999 kvar=0.0364612193992 model=1 vminpu=0 vmaxpu=2
+new Load.agg_52 phases=1 bus1=707.1 conn=wye kv=0.2401777119828843 kw=-4.800000000000005e-10 kvar=3.064e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_53 phases=1 bus1=707.2 conn=wye kv=0.2401777119828843 kw=0.9217126883040001 kvar=0.3029554512776 model=1 vminpu=0 vmaxpu=2
+new Load.agg_54 phases=1 bus1=707.3 conn=wye kv=0.2401777119828843 kw=0.4967016470472001 kvar=0.1632616632576 model=1 vminpu=0 vmaxpu=2
+new Load.agg_55 phases=1 bus1=786.1 conn=wye kv=0.2401777119828843 kw=0.1614682848952 kvar=0.05305787470880001 model=1 vminpu=0 vmaxpu=2
+new Load.agg_56 phases=1 bus1=786.2 conn=wye kv=0.2401777119828843 kw=3.56e-10 kvar=8.800000000000022e-12 model=1 vminpu=0 vmaxpu=2
+new Load.agg_57 phases=1 bus1=786.3 conn=wye kv=0.2401777119828843 kw=-1.672e-10 kvar=-2.400000000000001e-11 model=1 vminpu=0 vmaxpu=2
+new Load.agg_58 phases=1 bus1=787.1 conn=wye kv=0.2401777119828843 kw=0.6484428278904001 kvar=0.2131250181296 model=1 vminpu=0 vmaxpu=2
+new Load.agg_59 phases=1 bus1=787.2 conn=wye kv=0.2401777119828843 kw=0.3857028616776 kvar=0.1267788763728 model=1 vminpu=0 vmaxpu=2
+new Load.agg_60 phases=1 bus1=787.3 conn=wye kv=0.2401777119828843 kw=6.36e-10 kvar=-8.000000000000045e-12 model=1 vminpu=0 vmaxpu=2
+new Load.agg_61 phases=1 bus1=871.1 conn=wye kv=0.2401777119828843 kw=0.1094395616256 kvar=0.0359612445592 model=1 vminpu=0 vmaxpu=2
+new Load.agg_62 phases=1 bus1=871.2 conn=wye kv=0.2401777119828843 kw=2.104e-10 kvar=-7.744e-10 model=1 vminpu=0 vmaxpu=2
+new Load.agg_63 phases=1 bus1=871.3 conn=wye kv=0.2401777119828843 kw=4.568e-10 kvar=-3.784000000000001e-10 model=1 vminpu=0 vmaxpu=2

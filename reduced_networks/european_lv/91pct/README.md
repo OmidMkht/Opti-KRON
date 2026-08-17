@@ -1,25 +1,36 @@
 # european_lv — 91pct
 
-907 → 82 buses (91.0%), radial, CSV.
+907 → 82 buses (91.0%), radial, CSV/MATPOWER, MILP.
 
 | | |
 |---|---|
-| Ē | 0.01 (not binding) |
-| Backend | MILP, optimal |
+| Ē | 0.01 |
+| Backend | MILP, proven optimal |
 | Hops | 10 |
-| Scenarios | 1 of 1 |
+| Scenarios | all |
 | Radiality | `:in_model` |
-| Devices | switches, regulators, phase shifters preserved |
+| Preserved | `:required` — center-tap transformers, phase shifters, regulators, switches |
+
+## Rebuild it
+
+Set these in [`run_optikron.jl`](../../../run_optikron.jl), then run
+`julia --project=. run_optikron.jl`:
 
 ```julia
-optikron("european_lv"; Ē=0.01, hops=10, radiality=:in_model)
+case      = "european_lv"
+Ē         = 0.01
+hops      = 10
+preserve  = :required
+radiality = :in_model
+export_to = "reduced_networks/european_lv/91pct"
+export_dss = true
 ```
 
-**Violation** (enforced): `-9.52e-03` — inside budget.  
+## Accuracy
 
-## OpenDSS
-
-Solved error `1.55e-04` pu — inside `Ē`.
+- **Constant-PQ** (what the budget certifies): `5.154e-04` pu, 5% of `Ē`.
+- **OpenDSS re-solve** (constant-power, real windings): `1.495e-04` pu, 1% of `Ē`.
+- Equipment audit: location-only.
 
 ## Files
 

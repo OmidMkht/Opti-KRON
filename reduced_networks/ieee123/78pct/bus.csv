@@ -11,7 +11,7 @@ bus_id,phases,base_kv,type
 18,abc,1,pq
 25,abc,1,pq
 25r,ac,1,pq
-35,abc,1,pq
+40,abc,1,pq
 52,abc,1,pq
 57,abc,1,pq
 60,abc,1,pq
@@ -19,7 +19,7 @@ bus_id,phases,base_kv,type
 64,abc,1,pq
 67,abc,1,pq
 97,abc,1,pq
-83,abc,1,pq
+80,abc,1,pq
 197,abc,1,pq
 109,a,1,pq
 135,abc,1,pq

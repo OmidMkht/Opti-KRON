@@ -1,0 +1,5 @@
+! Original shunt models relocated and rebased in per unit
+new Capacitor.c83 Bus1="80" Phases=3 kvar=[600] kV=4.16 NormAmps=112.416759145095 EmergAmps=149.889012193461
+new Capacitor.c88a Bus1="67.1" Phases=1 kvar=[50] kV=2.402 NormAmps=28.1015820149875 EmergAmps=37.4687760199833
+new Capacitor.c90b Bus1="67.2" Phases=1 kvar=[50] kV=2.402 NormAmps=28.1015820149875 EmergAmps=37.4687760199833
+new Capacitor.c92c Bus1="67.3" Phases=1 kvar=[50] kV=2.402 NormAmps=28.1015820149875 EmergAmps=37.4687760199833

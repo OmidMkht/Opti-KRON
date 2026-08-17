@@ -1,0 +1,11 @@
+! Original shunt models relocated and rebased in per unit
+new Capacitor.capbank2a Bus1="l2823592.1" kV=7.2 kvar=[300] Phases=1 Conn="wye" NormAmps=56.25 EmergAmps=75
+new Capacitor.capbank2b Bus1="l2823592.2" kV=7.2 kvar=[300] Phases=1 Conn="wye" NormAmps=56.25 EmergAmps=75
+new Capacitor.capbank2c Bus1="l2823592.3" kV=7.2 kvar=[300] Phases=1 Conn="wye" NormAmps=56.25 EmergAmps=75
+new Capacitor.capbank1a Bus1="q16483.1" kV=7.2 kvar=[300] Phases=1 Conn="wye" NormAmps=56.25 EmergAmps=75
+new Capacitor.capbank1b Bus1="q16483.2" kV=7.2 kvar=[300] Phases=1 Conn="wye" NormAmps=56.25 EmergAmps=75
+new Capacitor.capbank1c Bus1="q16483.3" kV=7.2 kvar=[300] Phases=1 Conn="wye" NormAmps=56.25 EmergAmps=75
+new Capacitor.capbank0a Bus1="q16642.1" kV=7.2 kvar=[400] Phases=1 Conn="wye" NormAmps=75 EmergAmps=100
+new Capacitor.capbank0b Bus1="q16642.2" kV=7.2 kvar=[400] Phases=1 Conn="wye" NormAmps=75 EmergAmps=100
+new Capacitor.capbank0c Bus1="q16642.3" kV=7.2 kvar=[400] Phases=1 Conn="wye" NormAmps=75 EmergAmps=100
+new Capacitor.capbank3 Bus1="m1069135" kV=12.47112 kvar=[900] Conn="wye" NormAmps=56.2484024743083 EmergAmps=74.9978699657443

@@ -1,25 +1,36 @@
 # ieee123 — 57pct
 
-130 → 56 buses (56.9%), radial, CSV.
+130 → 56 buses (56.9%), radial, CSV/MATPOWER, MILP.
 
 | | |
 |---|---|
 | Ē | 0.002 |
-| Backend | MILP, optimal |
+| Backend | MILP, proven optimal |
 | Hops | 10 |
-| Scenarios | 1 of 1 |
+| Scenarios | all |
 | Radiality | `:in_model` |
-| Devices | switches, regulators, phase shifters preserved |
+| Preserved | `:required` — center-tap transformers, phase shifters, regulators, switches |
+
+## Rebuild it
+
+Set these in [`run_optikron.jl`](../../../run_optikron.jl), then run
+`julia --project=. run_optikron.jl`:
 
 ```julia
-optikron("ieee123"; Ē=0.002, hops=10, radiality=:in_model)
+case      = "ieee123"
+Ē         = 0.002
+hops      = 10
+preserve  = :required
+radiality = :in_model
+export_to = "reduced_networks/ieee123/57pct"
+export_dss = true
 ```
 
-**Violation** (enforced): `-6.47e-06` — inside budget.  
+## Accuracy
 
-## OpenDSS
-
-Solved error `9.41e-04` pu — inside `Ē`.
+- **Constant-PQ** (what the budget certifies): `1.994e-03` pu, 100% of `Ē`.
+- **OpenDSS re-solve** (constant-power, real windings): `9.149e-04` pu, 46% of `Ē`.
+- Equipment audit: location-only.
 
 ## Files
 

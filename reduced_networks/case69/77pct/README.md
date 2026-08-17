@@ -1,21 +1,33 @@
 # case69 — 77pct
 
-69 → 16 buses (76.8%), radial, MATPOWER.
+69 → 16 buses (76.8%), radial, CSV/MATPOWER, MILP.
 
 | | |
 |---|---|
 | Ē | 0.006 |
-| Backend | MILP, optimal |
+| Backend | MILP, proven optimal |
 | Hops | 10 |
-| Scenarios | 1 of 1 |
+| Scenarios | all |
 | Radiality | `:in_model` |
-| Devices | switches, regulators, phase shifters preserved |
+| Preserved | `:required` — center-tap transformers, phase shifters, regulators, switches |
+
+## Rebuild it
+
+Set these in [`run_optikron.jl`](../../../run_optikron.jl), then run
+`julia --project=. run_optikron.jl`:
 
 ```julia
-optikron("case69"; Ē=0.006, hops=10, radiality=:in_model)
+case      = "case69"
+Ē         = 0.006
+hops      = 10
+preserve  = :required
+radiality = :in_model
+export_to = "reduced_networks/case69/77pct"
 ```
 
-**Violation** (enforced): `-2.21e-04` — inside budget.  
+## Accuracy
+
+- **Constant-PQ** (what the budget certifies): `5.779e-03` pu, 96% of `Ē`.
 
 ## Files
 

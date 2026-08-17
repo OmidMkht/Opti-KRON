@@ -1,26 +1,36 @@
 # ieee34 — 51pct
 
-37 → 18 buses (51.4%), radial, CSV.
+37 → 18 buses (51.4%), radial, CSV/MATPOWER, MILP.
 
 | | |
 |---|---|
 | Ē | 0.003 |
-| Backend | MILP, optimal |
+| Backend | MILP, proven optimal |
 | Hops | 10 |
-| Scenarios | 1 of 1 |
+| Scenarios | all |
 | Radiality | `:in_model` |
-| Devices | switches, regulators, phase shifters preserved |
+| Preserved | `:required` — center-tap transformers, phase shifters, regulators, switches |
+
+## Rebuild it
+
+Set these in [`run_optikron.jl`](../../../run_optikron.jl), then run
+`julia --project=. run_optikron.jl`:
 
 ```julia
-optikron("ieee34"; Ē=0.003, hops=10, radiality=:in_model)
+case      = "ieee34"
+Ē         = 0.003
+hops      = 10
+preserve  = :required
+radiality = :in_model
+export_to = "reduced_networks/ieee34/51pct"
+export_dss = true
 ```
 
-**Violation** (enforced): `-3.66e-06` — inside budget.  
+## Accuracy
 
-## OpenDSS
-
-Solved error `9.38e-03` pu — **3× `Ē`**. Not a conversion fault; see
-[converter/README.md](../../../converter/README.md).
+- **Constant-PQ** (what the budget certifies): `2.551e-03` pu, 85% of `Ē`.
+- **OpenDSS re-solve** (constant-power, real windings): `1.706e-04` pu, 6% of `Ē`.
+- Equipment audit: location-only.
 
 ## Files
 

@@ -1,22 +1,35 @@
 # R100 — 82pct
 
-100 → 18 buses (82.0%), radial, CSV.
+100 → 18 buses (82.0%), radial, CSV/MATPOWER, MILP.
 
 | | |
 |---|---|
 | Ē | 0.001 |
-| Backend | MILP, optimal |
+| Backend | MILP, proven optimal |
 | Hops | 10 |
-| Scenarios | 67, 91 of 168 |
+| Scenarios | 67, 91 |
 | Radiality | `:in_model` |
-| Devices | switches, regulators, phase shifters preserved |
+| Preserved | `:required` — center-tap transformers, phase shifters, regulators, switches |
+
+## Rebuild it
+
+Set these in [`run_optikron.jl`](../../../run_optikron.jl), then run
+`julia --project=. run_optikron.jl`:
 
 ```julia
-optikron("R100"; Ē=0.001, hops=10, scenarios=[67, 91], radiality=:in_model)
+case      = "R100"
+Ē         = 0.001
+scenarios = [67, 91]
+hops      = 10
+preserve  = :required
+radiality = :in_model
+export_to = "reduced_networks/R100/82pct"
 ```
 
-**Violation** (enforced): `-5.33e-05` — inside budget.  
-**Violation** (held-out, 166 of 168): `+2.63e-03` — 3.6× `Ē`, not certified.
+## Accuracy
+
+- **Constant-PQ** (what the budget certifies): `9.467e-04` pu, 95% of `Ē`.
+- Held-out scenarios: `3.634e-03` pu — **not certified**, 3.6× `Ē`.
 
 ## Files
 

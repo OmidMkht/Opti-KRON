@@ -1,0 +1,13 @@
+clear
+new Circuit.Reduced basekv=230 phases=3 bus1=sourcebus frequency=60
+redirect Models.dss
+redirect Source.dss
+redirect Transformers.dss
+redirect Branches.dss
+redirect Shunts.dss
+redirect PhysicalShunts.dss
+redirect Loads.dss
+redirect Injections.dss
+set loadmult=1
+set controlmode=off
+solve mode=snapshot

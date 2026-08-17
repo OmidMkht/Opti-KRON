@@ -5,13 +5,51 @@
   "radial_edge_count": 55,
   "preserved_transformer_count": 8,
   "equipment_mapping_row_count": 50,
+  "load_representation": "original-models",
+  "voltage_level_audit": {
+    "assignment_bus_mismatch_count": 0,
+    "equipment_terminal_mismatch_counts": {},
+    "location_only_voltage_level_valid": true,
+    "per_unit_transformed_equivalent_valid": true,
+    "incompatible_phase_domain_assignment_count": 0,
+    "examples": [],
+    "transformed_transformer_winding_count": 0
+  },
+  "equipment_per_unit_transformation": {
+    "transformed_equipment_counts": {},
+    "transformed_equipment_count": 0,
+    "examples": []
+  },
+  "reduced_ybus": {
+    "source": "csv",
+    "relative_sparsification_tolerance": null,
+    "phase_node_count": 133,
+    "nnz": 993
+  },
+  "relocated_equipment_counts": {
+    "Load": 91,
+    "Capacitor": 4
+  },
+  "original_load_model_counts": {
+    "1": 59,
+    "5": 15,
+    "2": 17
+  },
+  "relocated_physical_shunt_count": 4,
+  "mapped_load_count": 91,
+  "mapped_solved_load_p_pu": 0.7038574381875569,
+  "mapped_solved_load_q_pu": 0.38732450327744483,
   "sbase_mva": 5.0,
   "aggregation_max_abs_power_error_pu": 0.0,
   "target_vs_full_max_complex_voltage_error_pu": 0.0,
-  "max_voltage_magnitude_error_pu": 0.0009408143857714268,
+  "max_voltage_magnitude_error_pu": 0.000914869515318939,
   "max_voltage_magnitude_error_bus": "82",
   "max_voltage_magnitude_error_phase": "a",
-  "max_complex_voltage_error_pu": 0.001013227816307997,
+  "max_complex_voltage_error_pu": 0.0009842397224283518,
   "max_abs_synthesized_ybus_error_pu": 4.867283847980215e-08,
-  "relative_synthesized_ybus_error": 4.216173281961903e-14
+  "relative_synthesized_ybus_error": 4.216173281961903e-14,
+  "target_phase_nodes_below_0_5_pu": 0,
+  "max_energized_voltage_magnitude_error_pu": 0.000914869515318939,
+  "max_energized_voltage_magnitude_error_bus": "82",
+  "max_energized_voltage_magnitude_error_phase": "a"
 }

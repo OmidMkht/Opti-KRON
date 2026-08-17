@@ -1,0 +1,65 @@
+{
+  "full_bus_count": 39,
+  "reduced_bus_count": 13,
+  "reduced_phase_node_count": 39,
+  "radial_edge_count": 12,
+  "preserved_transformer_count": 4,
+  "equipment_mapping_row_count": 12,
+  "load_representation": "original-models",
+  "voltage_level_audit": {
+    "assignment_bus_mismatch_count": 1,
+    "equipment_terminal_mismatch_counts": {
+      "transformer": 1
+    },
+    "location_only_voltage_level_valid": false,
+    "per_unit_transformed_equivalent_valid": true,
+    "incompatible_phase_domain_assignment_count": 0,
+    "examples": [
+      {
+        "class": "transformer",
+        "element": "Transformer.xfm1",
+        "original_bus": "775",
+        "super_bus": "730",
+        "original_kv_ln": 0.27712812921102037,
+        "super_kv_ln": 2.7712812921102037
+      }
+    ],
+    "transformed_transformer_winding_count": 1
+  },
+  "equipment_per_unit_transformation": {
+    "transformed_equipment_counts": {},
+    "transformed_equipment_count": 0,
+    "examples": []
+  },
+  "reduced_ybus": {
+    "source": "csv",
+    "relative_sparsification_tolerance": null,
+    "phase_node_count": 39,
+    "nnz": 833
+  },
+  "relocated_equipment_counts": {
+    "Load": 30
+  },
+  "original_load_model_counts": {
+    "1": 15,
+    "4": 8,
+    "2": 7
+  },
+  "relocated_physical_shunt_count": 0,
+  "mapped_load_count": 30,
+  "mapped_solved_load_p_pu": 0.9744021813616108,
+  "mapped_solved_load_q_pu": 0.47438222319607737,
+  "sbase_mva": 2.5,
+  "aggregation_max_abs_power_error_pu": 0.0,
+  "target_vs_full_max_complex_voltage_error_pu": 0.0,
+  "max_voltage_magnitude_error_pu": 0.0005604906546047284,
+  "max_voltage_magnitude_error_bus": "737",
+  "max_voltage_magnitude_error_phase": "b",
+  "max_complex_voltage_error_pu": 0.0005642946306460637,
+  "max_abs_synthesized_ybus_error_pu": 4.548028586499771e-13,
+  "relative_synthesized_ybus_error": 1.46364179690512e-16,
+  "target_phase_nodes_below_0_5_pu": 0,
+  "max_energized_voltage_magnitude_error_pu": 0.0005604906546047284,
+  "max_energized_voltage_magnitude_error_bus": "737",
+  "max_energized_voltage_magnitude_error_phase": "b"
+}

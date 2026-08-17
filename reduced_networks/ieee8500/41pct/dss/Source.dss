@@ -1,0 +1,1 @@
+edit Vsource.source bus1=sourcebus bus2=sourcebus.0.0.0 phases=3 basekv=115 pu=1.05 angle=0 frequency=60 r1=0 x1=0.001 r0=0 x0=0.001

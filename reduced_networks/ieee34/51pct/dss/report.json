@@ -5,13 +5,52 @@
   "radial_edge_count": 17,
   "preserved_transformer_count": 8,
   "equipment_mapping_row_count": 32,
+  "load_representation": "original-models",
+  "voltage_level_audit": {
+    "assignment_bus_mismatch_count": 0,
+    "equipment_terminal_mismatch_counts": {},
+    "location_only_voltage_level_valid": true,
+    "per_unit_transformed_equivalent_valid": true,
+    "incompatible_phase_domain_assignment_count": 0,
+    "examples": [],
+    "transformed_transformer_winding_count": 0
+  },
+  "equipment_per_unit_transformation": {
+    "transformed_equipment_counts": {},
+    "transformed_equipment_count": 0,
+    "examples": []
+  },
+  "reduced_ybus": {
+    "source": "csv",
+    "relative_sparsification_tolerance": null,
+    "phase_node_count": 50,
+    "nnz": 450
+  },
+  "relocated_equipment_counts": {
+    "Load": 68,
+    "Capacitor": 2
+  },
+  "original_load_model_counts": {
+    "1": 38,
+    "5": 10,
+    "2": 18,
+    "4": 2
+  },
+  "relocated_physical_shunt_count": 2,
+  "mapped_load_count": 68,
+  "mapped_solved_load_p_pu": 0.7094203419768407,
+  "mapped_solved_load_q_pu": 0.4223616721114326,
   "sbase_mva": 2.5,
   "aggregation_max_abs_power_error_pu": 0.0,
   "target_vs_full_max_complex_voltage_error_pu": 0.0,
-  "max_voltage_magnitude_error_pu": 0.009378515343515526,
-  "max_voltage_magnitude_error_bus": "890",
-  "max_voltage_magnitude_error_phase": "c",
-  "max_complex_voltage_error_pu": 0.009581871390907444,
+  "max_voltage_magnitude_error_pu": 0.00017061546729002508,
+  "max_voltage_magnitude_error_bus": "834",
+  "max_voltage_magnitude_error_phase": "b",
+  "max_complex_voltage_error_pu": 0.00019855969104552946,
   "max_abs_synthesized_ybus_error_pu": 1.1064480586898241e-11,
-  "relative_synthesized_ybus_error": 3.331588834258792e-16
+  "relative_synthesized_ybus_error": 3.331588834258792e-16,
+  "target_phase_nodes_below_0_5_pu": 0,
+  "max_energized_voltage_magnitude_error_pu": 0.00017061546729002508,
+  "max_energized_voltage_magnitude_error_bus": "834",
+  "max_energized_voltage_magnitude_error_phase": "b"
 }
