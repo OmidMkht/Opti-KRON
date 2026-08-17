@@ -41,6 +41,7 @@ include("io/to_matpower.jl")
 include("io/to_csv.jl")
 
 export Network, Branch, Device
+export DEVICE_KINDS, EDGE_KINDS, REQUIRED_KINDS, missing_for_dss
 export nnodes, nphase_rows, nscenarios, is_three_phase, has_branch_data, node_rows
 export read_network_csv, read_network_ybus, network_from_matrices
 export write_matpower, write_reduced_csv, read_voltage, read_devices, preserved_buses

@@ -67,7 +67,7 @@ const C34 = joinpath(@__DIR__, "..", "data", "ieee34")
         for case in ("case69",          # MATPOWER: no device tables at all
             "R100",            # CSV: no device tables at all
             "ieee34")          # switch.csv present but empty
-            r = optikron(case; Ē=0.05, hops=3, preserve=:none, contract=true,
+            r = optikron(case; Ē=0.05, hops=3, preserve=(:center_tap, :phase_shift), contract=true,
                 time_limit=300)
             @test r.contraction === nothing
             @test size(r.assignment) == (nnodes(r.network), nnodes(r.network))
@@ -81,8 +81,8 @@ const C34 = joinpath(@__DIR__, "..", "data", "ieee34")
         @test loose.contraction === nothing
 
         # And contracting nothing must give exactly the uncontracted answer.
-        plain = optikron("ieee34"; Ē=0.05, hops=3, preserve=:none, time_limit=300)
-        merged = optikron("ieee34"; Ē=0.05, hops=3, preserve=:none, contract=true,
+        plain = optikron("ieee34"; Ē=0.05, hops=3, preserve=(:center_tap, :phase_shift), time_limit=300)
+        merged = optikron("ieee34"; Ē=0.05, hops=3, preserve=(:center_tap, :phase_shift), contract=true,
             time_limit=300)
         @test merged.assignment == plain.assignment
     end
@@ -126,8 +126,8 @@ const C34 = joinpath(@__DIR__, "..", "data", "ieee34")
 
     @testset "reducing contracted then expanding respects the original budget" begin
         Ē = 0.01
-        plain = optikron("ieee123"; Ē=Ē, hops=5, preserve=:both, time_limit=600)
-        merged = optikron("ieee123"; Ē=Ē, hops=5, preserve=:both, contract=true,
+        plain = optikron("ieee123"; Ē=Ē, hops=5, preserve=:required, time_limit=600)
+        merged = optikron("ieee123"; Ē=Ē, hops=5, preserve=:required, contract=true,
             time_limit=600)
 
         @test merged.contraction !== nothing
@@ -144,7 +144,7 @@ const C34 = joinpath(@__DIR__, "..", "data", "ieee34")
     end
 
     @testset "a surviving switch comes through Kron reduction exactly" begin
-        r = optikron("ieee123"; Ē=0.01, hops=5, preserve=:both, contract=true,
+        r = optikron("ieee123"; Ē=0.01, hops=5, preserve=:required, contract=true,
             time_limit=600)
         net = r.network
         kept = super_nodes(r.assignment)

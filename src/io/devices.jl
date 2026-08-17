@@ -22,15 +22,34 @@
 # switch state and be wrong the moment the device moved. A delta-wye phase shift
 # never changes, so pinning it is about keeping the network interpretable.
 #
-# `transformer.csv` is the edge list; `regulator.csv` and
-# `phase_shift_equipment.csv` classify rows of it rather than adding edges. A
-# transformer named by the phase-shift table is `:phase_shift`, one named by a
-# regulator's `transformer_id` is `:regulator`, and the rest are `:transformer`.
-# Rows with `enabled = 0`, open switches, and terminals absent from bus.csv are
-# all dropped -- none of them is an edge of this Ybus.
+# `transformer.csv` is the edge list; `regulator.csv`,
+# `phase_shift_equipment.csv` and `center_tapped_transformer.csv` classify rows
+# of it rather than adding edges. A transformer named by the phase-shift table is
+# `:phase_shift`, one named by the center-tap table is `:center_tap`, one named by
+# a regulator's `transformer_id` is `:regulator`, and the rest are
+# `:transformer`. Rows with `enabled = 0`, open switches, and terminals absent
+# from bus.csv are all dropped -- none of them is an edge of this Ybus.
+#
+# A center-tapped transformer is the one kind that cannot be crossed even with
+# rebasing. Its two secondaries sit on one bus in opposite orientation (`.1.0`
+# and `.0.2` about the centre conductor), so the primary-to-secondary map is not
+# a diagonal scaling and no per-unit change of base reproduces it. Everything
+# downstream of one is a separate phase reference domain.
+#
+# `capacitor_bank.csv` is a shunt, not an edge, so it pins one bus. It is off by
+# default: the Schur complement carries its admittance correctly, and pinning
+# only matters when the bank's switching state has to stay operable.
 # --------------------------------------------------------------------------- #
 
-const DEVICE_KINDS = (:transformer, :regulator, :phase_shift, :switch)
+const DEVICE_KINDS = (:transformer, :center_tap, :regulator, :phase_shift, :switch, :capacitor)
+
+"""
+The kinds that are *edges* of this Ybus, and so the ones the exactness argument
+above applies to. `:capacitor` is not among them: a bank is a shunt, so pinning
+its bus keeps the bank in place and relocatable but does not leave the diagonal
+block untouched. It is opt-in for that reason, and `read_devices` defaults here.
+"""
+const EDGE_KINDS = (:transformer, :center_tap, :regulator, :phase_shift, :switch)
 
 """
     Device
@@ -50,33 +69,37 @@ struct Device
 end
 
 """
-    read_devices(dir, net; kinds=DEVICE_KINDS) -> Vector{Device}
+    read_devices(dir, net; kinds=EDGE_KINDS) -> Vector{Device}
 
 Devices in `dir` of the requested `kinds` whose terminals both exist in `net`.
 Empty when the case ships no device files, as the MATPOWER feeders do not.
 
-Reads `transformer.csv`, `regulator.csv`, `phase_shift_equipment.csv` and
-`switch.csv`. Phase columns are ignored -- pinning is per bus, and a pinned bus
-keeps every phase.
+Reads `transformer.csv`, `regulator.csv`, `phase_shift_equipment.csv`,
+`center_tapped_transformer.csv`, `switch.csv` and `capacitor_bank.csv`. Phase
+columns are ignored -- pinning is per bus, and a pinned bus keeps every phase.
 
 `kinds` accepts any subset of `$(DEVICE_KINDS)`, or `:all`. Dropping `:switch`
 merges across closed switches, which is nearly free since a closed switch is a
 jumper whose ends are electrically one node -- worth it unless the switch must
 stay operable for reconfiguration studies. Dropping `:regulator` lets the
 reduction absorb a regulator at its present tap, which is only safe if the taps
-are frozen.
+are frozen. Dropping `:center_tap` is not safe on a feeder that has any: see the
+header.
 """
-function read_devices(dir::AbstractString, net::Network; kinds=DEVICE_KINDS)
+function read_devices(dir::AbstractString, net::Network; kinds=EDGE_KINDS)
     wanted = _device_kinds(kinds)
     index_of = Dict(id => k for (k, id) in enumerate(net.bus_ids))
     found = Device[]
 
     shifters = _ids_in(joinpath(dir, "phase_shift_equipment.csv"), :equipment_id)
     regulated = _ids_in(joinpath(dir, "regulator.csv"), :transformer_id)
+    centre = _ids_in(joinpath(dir, "center_tapped_transformer.csv"), :transformer_id)
 
     _each_row(joinpath(dir, "transformer.csv")) do row
         id = _as_string(row.transformer_id)
-        kind = id in shifters ? :phase_shift : id in regulated ? :regulator : :transformer
+        kind = id in shifters ? :phase_shift :
+               id in centre ? :center_tap :
+               id in regulated ? :regulator : :transformer
         kind in wanted || return
         note = string(_column(row, :from_connection, "?"), "-",
             _column(row, :to_connection, "?"))
@@ -88,6 +111,16 @@ function read_devices(dir::AbstractString, net::Network; kinds=DEVICE_KINDS)
             status = _column(row, :status, "")
             status == "open" && return          # not an edge of this Ybus
             _push_device!(found, index_of, _as_string(row.switch_id), :switch, row, status)
+        end
+    end
+
+    if :capacitor in wanted
+        _each_row(joinpath(dir, "capacitor_bank.csv")) do row
+            hasproperty(row, :bus_id) || return
+            bus = get(index_of, _as_string(row.bus_id), nothing)
+            bus === nothing && return
+            push!(found, Device(_as_string(row.capacitor_id), :capacitor, bus, bus,
+                _column(row, :connection, "")))
         end
     end
     return found

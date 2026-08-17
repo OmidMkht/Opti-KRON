@@ -49,10 +49,11 @@ the worst violation moved from -1.4e-06 to +3.4e-05.
 rather than `:auto`, worth doing for a benchmark.
 
 `preserve` keeps equipment intact where the case ships device tables --
-`:both` (default), `:switches`, `:regulators`, `:none`, or an explicit tuple of
-kinds; see [`_preserve_kinds`](@ref). Phase shifters are pinned regardless, plain
-transformers never. The device *model* is preserved exactly; the loading through
-it still moves.
+`:required` (default), `:all`, `:switches`, `:regulators`, or an explicit tuple
+of kinds; see [`_preserve_kinds`](@ref). Center-tapped transformers and phase
+shifters are pinned regardless, plain transformers and capacitor banks only on
+request. The device *model* is preserved exactly; the loading through it still
+moves.
 
 `contract` solves on a switch-contracted feeder and expands the answer back, so
 `assignment` is full size either way. A closed switch is a jumper whose ends are
@@ -70,7 +71,7 @@ function optikron(case;
     radiality::Symbol=:in_model,
     backend::Symbol=:milp,
     solver::Symbol=:auto,
-    preserve=:both,
+    preserve=:required,
     contract::Bool=false,
     directory::Union{Nothing,AbstractString}=nothing,
     time_limit::Union{Nothing,Real}=3600,
@@ -181,27 +182,62 @@ end
 
 Resolve the `preserve` option to the device kinds to pin.
 
-- `:both` (default)  switches and regulators.
-- `:switches`        switches only.
-- `:regulators`      regulators only.
-- `:none`            neither.
+- `:required` (default)  center-tapped transformers, phase shifters, regulators
+  and switches.
+- `:all`                 those plus plain transformers and capacitor banks.
+- `:switches`            required, minus regulators.
+- `:regulators`          required, minus switches.
+- `:none`                pin nothing.
 - a tuple or vector of kinds, for anything else.
 
-Phase-shifting transformers sit outside this choice and are pinned under all four
-options. A phase shift is the one connection a Schur complement cannot represent,
-so absorbing it would silently bake in one winding orientation -- a correctness
-requirement, not a preference.
+Nothing here is forced. The reduction itself is valid under any choice -- the
+error budget is enforced the same way regardless, and `annulus_violation`
+certifies the result either way. What a looser choice costs is *interpretability*
+of the equivalent, and the ability to write it back out as a circuit:
+[`export_reduced`](@ref) warns when a reduction that dropped one of the required
+kinds is asked for an OpenDSS form.
 
-Plain transformers are never pinned. On ieee8500 the 2354 service transformers
-would pin 2400 buses, 49% of the feeder and a hard ceiling on reduction, while
-the regulators, switches and phase shifter together pin 85, or 1.7%.
+The first two of the required set are *structural*. A phase shift is the one
+connection a Schur complement cannot represent, so absorbing it would silently
+bake in one winding orientation. A center-tapped transformer is worse: its two
+secondaries sit on one bus in opposite orientation about the centre conductor, so
+the primary-to-secondary map is not a diagonal scaling and no change of per-unit
+base reproduces it. Both stay pinned under every option, including `:switches`
+and `:regulators`.
+
+The other two are about *state*: a regulator taps and a switch opens, and a
+reduction that folded either in would encode one position and be wrong the moment
+the device moved.
+
+Plain transformers are not pinned by default. An ordinary two-winding crossing is
+recoverable -- each winding's kV rebases by its terminals' voltage ratio -- so
+pinning them only costs reduction: on ieee8500 they would fix 2400 buses, 49% of
+the feeder. Capacitor banks are likewise optional; the Schur complement carries
+their admittance, and pinning matters only if the bank must stay switchable.
 """
 _preserve_kinds(preserve) =
-    preserve === :both ? (:phase_shift, :regulator, :switch) :
-    preserve === :switches ? (:phase_shift, :switch) :
-    preserve === :regulators ? (:phase_shift, :regulator) :
-    preserve === :none ? (:phase_shift,) :
+    preserve === :required ? REQUIRED_KINDS :
+    preserve === :all ? DEVICE_KINDS :
+    preserve === :switches ? (:center_tap, :phase_shift, :switch) :
+    preserve === :regulators ? (:center_tap, :phase_shift, :regulator) :
+    preserve === :none ? () :
     _device_kinds(preserve)
+
+"""
+The kinds an OpenDSS form needs kept. Dropping any of them still gives a valid
+reduction -- see [`_preserve_kinds`](@ref) -- but the equivalent can no longer be
+written back as a circuit whose equipment means what it did.
+"""
+const REQUIRED_KINDS = (:center_tap, :phase_shift, :regulator, :switch)
+
+"""
+    missing_for_dss(preserve) -> Tuple{Vararg{Symbol}}
+
+Which of [`REQUIRED_KINDS`](@ref) a `preserve` choice leaves unpinned. Empty when
+the reduction can be written out as OpenDSS without qualification.
+"""
+missing_for_dss(preserve) =
+    Tuple(k for k in REQUIRED_KINDS if k ∉ _preserve_kinds(preserve))
 
 """
     load_case(name) -> Network

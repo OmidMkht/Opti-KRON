@@ -44,15 +44,20 @@ end
         @test isempty(read_devices(IEEE123, net; kinds=()))
         @test all(d -> d.kind === :switch, read_devices(IEEE123, net; kinds=(:switch,)))
         @test length(read_devices(IEEE123, net; kinds=(:regulator,))) == 7
+
+        # `:all` adds the shunt kind on top of the edge kinds the default reads.
+        # ieee123 ships 4 capacitor banks.
         @test length(read_devices(IEEE123, net; kinds=:all)) ==
-              length(read_devices(IEEE123, net))
+              length(read_devices(IEEE123, net)) + 4
+        @test all(d -> d.from == d.to,
+            read_devices(IEEE123, net; kinds=(:capacitor,)))
 
         # Selecting a subset never returns more than selecting everything.
         subset = read_devices(IEEE123, net; kinds=(:regulator, :switch))
         @test length(preserved_buses(subset)) <=
               length(preserved_buses(read_devices(IEEE123, net)))
 
-        @test_throws ErrorException read_devices(IEEE123, net; kinds=(:capacitor,))
+        @test_throws ErrorException read_devices(IEEE123, net; kinds=(:inverter,))
     end
 
     @testset "open switches are not edges" begin
@@ -150,28 +155,35 @@ end
     end
 
     @testset "preserve option in the pipeline" begin
-        loose = optikron("ieee123"; Ē=0.01, hops=5, preserve=:none, time_limit=600)
+        bare = optikron("ieee123"; Ē=0.01, hops=5,
+            preserve=(:center_tap, :phase_shift), time_limit=600)
         sw = optikron("ieee123"; Ē=0.01, hops=5, preserve=:switches, time_limit=600)
         reg = optikron("ieee123"; Ē=0.01, hops=5, preserve=:regulators, time_limit=600)
-        both = optikron("ieee123"; Ē=0.01, hops=5, preserve=:both, time_limit=600)
+        required = optikron("ieee123"; Ē=0.01, hops=5, preserve=:required, time_limit=600)
+        everything = optikron("ieee123"; Ē=0.01, hops=5, preserve=:all, time_limit=600)
 
-        # Plain transformers are pinned under none of them.
-        for r in (loose, sw, reg, both)
+        # Plain transformers and capacitor banks are opt-in, so only `:all` has them.
+        for r in (bare, sw, reg, required)
             @test all(d -> d.kind !== :transformer, r.devices)
+            @test all(d -> d.kind !== :capacitor, r.devices)
         end
+        @test any(d -> d.kind === :transformer, everything.devices)
+        @test any(d -> d.kind === :capacitor, everything.devices)
+
         @test all(d -> d.kind !== :regulator, sw.devices)
         @test all(d -> d.kind !== :switch, reg.devices)
-        @test length(both.devices) == length(sw.devices) + length(reg.devices)
+        @test length(required.devices) == length(sw.devices) + length(reg.devices)
 
-        # Each single-kind option preserves at least as much as neither, and
-        # `:both` at least as much as either.
+        # Each single-kind option preserves at least as much as the bare set,
+        # `:required` at least as much as either, and `:all` most of all.
         for r in (sw, reg)
-            @test length(loose.solution.kept) <= length(r.solution.kept)
-            @test length(r.solution.kept) <= length(both.solution.kept)
+            @test length(bare.solution.kept) <= length(r.solution.kept)
+            @test length(r.solution.kept) <= length(required.solution.kept)
         end
+        @test length(required.solution.kept) <= length(everything.solution.kept)
 
         # And every one of them stays inside the budget.
-        for r in (loose, sw, reg, both)
+        for r in (bare, sw, reg, required, everything)
             @test enforced_violation(r) <= 0
         end
 
@@ -179,17 +191,23 @@ end
     end
 
     @testset "_preserve_kinds resolves the shorthands" begin
-        @test OptiKRON._preserve_kinds(:both) == (:phase_shift, :regulator, :switch)
-        @test OptiKRON._preserve_kinds(:switches) == (:phase_shift, :switch)
-        @test OptiKRON._preserve_kinds(:regulators) == (:phase_shift, :regulator)
-        @test OptiKRON._preserve_kinds(:none) == (:phase_shift,)
+        @test OptiKRON._preserve_kinds(:required) ==
+              (:center_tap, :phase_shift, :regulator, :switch)
+        @test OptiKRON._preserve_kinds(:all) == OptiKRON.DEVICE_KINDS
+        @test OptiKRON._preserve_kinds(:switches) == (:center_tap, :phase_shift, :switch)
+        @test OptiKRON._preserve_kinds(:regulators) == (:center_tap, :phase_shift, :regulator)
         @test OptiKRON._preserve_kinds((:switch,)) == (:switch,)
 
-        # A phase shift cannot be represented by a Schur complement, so it is
-        # pinned whatever the caller asks for on the switch/regulator axis.
-        for option in (:both, :switches, :regulators, :none)
-            @test :phase_shift in OptiKRON._preserve_kinds(option)
-            @test :transformer ∉ OptiKRON._preserve_kinds(option)
+        # Neither a phase shift nor a center-tapped transformer can be recovered
+        # from a Schur complement, so both stay pinned whatever the caller asks
+        # for on the switch/regulator axis. Plain transformers and capacitor banks
+        # cost reduction and are opt-in.
+        for option in (:required, :switches, :regulators)
+            kinds = OptiKRON._preserve_kinds(option)
+            @test :phase_shift in kinds
+            @test :center_tap in kinds
+            @test :transformer ∉ kinds
+            @test :capacitor ∉ kinds
         end
     end
 
