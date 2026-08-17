@@ -1,12 +1,12 @@
 # GitHub reads this file and shows a "Cite this repository" button on the
-# repository page. The MIT license permits reuse; this file is what tells a
-# reuser how to attribute it. Software and methodology are cited separately:
-# `preferred-citation` below points at the journal article, which is what most
-# users should cite.
+# repository page. `preferred-citation` is the core method, accepted at IEEE
+# TPWRS but not yet published -- cite the arXiv preprint until it is, then
+# swap in the journal record. `references` holds the three-phase extension.
 #
 # TODO before tagging a release:
 #   - add ORCID identifiers under each author
 #   - after archiving a release on Zenodo, add its DOI under `identifiers`
+#   - swap preferred-citation to the TPWRS journal record once published
 cff-version: 1.2.0
 title: "Opti-KRON: optimal Kron-based network reduction for distribution feeders"
 message: >-
@@ -47,18 +47,14 @@ authors:
 preferred-citation:
   type: article
   title: >-
-    Optimal Kron-based Reduction of Networks (Opti-KRON) for Three-phase
-    Distribution Feeders
-  journal: Electric Power Systems Research
-  volume: 263
-  start: 113615
-  year: 2027
-  doi: 10.1016/j.epsr.2026.113615
-  publisher:
-    name: Elsevier
+    Structure-preserving Optimal Kron-based Reduction of Radial Distribution
+    Networks
+  year: 2025
+  url: "https://arxiv.org/abs/2508.15006"
+  notes: "Accepted, IEEE Transactions on Power Systems. Cite the arXiv preprint until published."
   identifiers:
     - type: other
-      value: "arXiv:2510.19608"
+      value: "arXiv:2508.15006"
   authors:
     - family-names: Mokhtari
       given-names: Omid
@@ -70,14 +66,19 @@ preferred-citation:
 references:
   - type: article
     title: >-
-      Structure-preserving Optimal Kron-based Reduction of Radial Distribution
-      Networks
-    year: 2025
-    url: "https://arxiv.org/abs/2508.15006"
-    notes: "Preprint. Single-phase MILP and the radialization step (Theorem 1)."
+      Optimal Kron-based Reduction of Networks (Opti-KRON) for Three-phase
+      Distribution Feeders
+    journal: Electric Power Systems Research
+    volume: 263
+    start: 113615
+    year: 2027
+    doi: 10.1016/j.epsr.2026.113615
+    publisher:
+      name: Elsevier
+    notes: "Three-phase extension."
     identifiers:
       - type: other
-        value: "arXiv:2508.15006"
+        value: "arXiv:2510.19608"
     authors:
       - family-names: Mokhtari
         given-names: Omid

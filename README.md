@@ -206,19 +206,19 @@ gradient runs the way it does.
 
 ## Citation
 
-If you use the Opti-KRON methodology, please cite the journal paper:
+If you use the Opti-KRON methodology, please cite:
+
+> O. Mokhtari, S. Chevalier, and M. Almassalkhi, "Structure-preserving Optimal Kron-based
+> Reduction of Radial Distribution Networks," accepted, *IEEE Transactions on Power Systems*,
+> 2025. [arXiv:2508.15006](https://arxiv.org/abs/2508.15006)
+
+For the three-phase extension:
 
 > O. Mokhtari, S. Chevalier, and M. Almassalkhi, "Optimal Kron-based Reduction of Networks
 > (Opti-KRON) for Three-phase Distribution Feeders," *Electric Power Systems Research*,
 > vol. 263, art. 113615, 2027.
 > [doi:10.1016/j.epsr.2026.113615](https://doi.org/10.1016/j.epsr.2026.113615) ·
 > [arXiv:2510.19608](https://arxiv.org/abs/2510.19608)
-
-For the single-phase MILP and the radialization step:
-
-> O. Mokhtari, S. Chevalier, and M. Almassalkhi, "Structure-preserving Optimal Kron-based
-> Reduction of Radial Distribution Networks," arXiv preprint, 2025.
-> [arXiv:2508.15006](https://arxiv.org/abs/2508.15006)
 
 ## License
 
