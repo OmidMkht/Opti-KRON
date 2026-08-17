@@ -20,7 +20,10 @@ class DatasetExporterIntegrationTest(unittest.TestCase):
             with (out/'bus.csv').open() as f: bus_header=next(csv.reader(f))
             with (out/'ybus.csv').open() as f: ybus_header=next(csv.reader(f))
             with (out/'load.csv').open() as f: load_header=next(csv.reader(f))
-            equipment_files=['bus_coordinates.csv','regulator.csv','capacitor_bank.csv','phase_shift_equipment.csv']
+            equipment_files=[
+                'bus_coordinates.csv','regulator.csv','capacitor_bank.csv',
+                'phase_shift_equipment.csv','center_tapped_transformer.csv',
+            ]
             equipment_files_exist=all((out/name).exists() for name in equipment_files)
         self.assertEqual(report['bus_count'],4)
         self.assertEqual(report['phase_node_count'],12)
@@ -44,6 +47,37 @@ class DatasetExporterIntegrationTest(unittest.TestCase):
             [(row['switch_id'],row['to_bus'],row['status']) for row in switches],
             [('sw_open','b3','open')],
         )
+
+    def test_center_tapped_transformer_windings_are_exported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);master=root/'Master.dss'
+            master.write_text(
+                'clear\n'
+                'new Circuit.ct bus1=primary.1 basekv=7.2 phases=1 pu=1\n'
+                'new Transformer.ct phases=1 windings=3 '
+                'buses=[primary.1.0 secondary.1.0 secondary.0.2] '
+                'conns=[wye wye wye] kvs=[7.2 0.12 0.12] '
+                'kvas=[25 25 25] %rs=[0.6 1.2 1.2] xhl=2 xht=2 xlt=1\n'
+                'new Load.ld bus1=secondary.1.2 phases=1 conn=delta '
+                'kv=0.24 kw=5 kvar=1 model=1\n'
+                'set voltagebases=[7.2 0.24]\ncalcvoltagebases\nsolve\n',
+                encoding='ascii',
+            )
+            output=root/'dataset';export_dataset(master,output,1.0)
+            with (output/'center_tapped_transformer.csv').open(
+                newline='',encoding='utf-8'
+            ) as stream:
+                rows=list(csv.DictReader(stream))
+        self.assertEqual([row['role'] for row in rows],['primary','secondary_1','secondary_2'])
+        self.assertEqual(
+            [row['bus_spec'] for row in rows],
+            ['primary.1.0','secondary.1.0','secondary.0.2'],
+        )
+        for actual,expected in zip(
+            [float(row['voltage_ratio']) for row in rows],[1.0,1/60,1/60]
+        ):
+            self.assertAlmostEqual(actual,expected,places=7)
+        self.assertEqual([float(row['rated_s_pu']) for row in rows],[0.025,0.025,0.025])
 
 
 if __name__=='__main__':

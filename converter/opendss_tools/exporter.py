@@ -244,9 +244,40 @@ def _bus_phase_string(spec: str) -> str:
     return ''.join(PHASE_NAMES[x] for x in nums)
 
 
+def _bus_spec_nodes(spec: str) -> tuple[int,...]:
+    return tuple(
+        int(value) for value in spec.strip().split('.')[1:]
+        if value.lstrip('-').isdigit()
+    )
+
+
+def _center_tap_pair(buses: list[str], winding_kvs: list[float], phase_count: int):
+    """Return the two zero-based secondary winding indices of a center tap."""
+    if phase_count!=1 or len(buses)<3:return None
+    for left in range(1,len(buses)):
+        for right in range(left+1,len(buses)):
+            if _normalize_bus(buses[left])!=_normalize_bus(buses[right]):continue
+            if abs(winding_kvs[left]-winding_kvs[right])>1e-8*max(
+                1.0,abs(winding_kvs[left]),abs(winding_kvs[right])
+            ):continue
+            left_nodes=_bus_spec_nodes(buses[left]);right_nodes=_bus_spec_nodes(buses[right])
+            if len(left_nodes)<2 or len(right_nodes)<2:continue
+            forward=(
+                left_nodes[-1]==right_nodes[0]
+                and left_nodes[0]!=right_nodes[-1]
+            )
+            reverse=(
+                left_nodes[0]==right_nodes[-1]
+                and left_nodes[-1]!=right_nodes[0]
+            )
+            if forward or reverse:return left,right
+    return None
+
+
 def _write_equipment(output: Path, bus_metadata: dict, sbase_va: float):
     transformers=[]
     phase_shift_equipment=[]
+    center_tapped_transformers=[]
     for name in dss.Transformers.AllNames():
         dss.Transformers.Name(name)
         dss.Circuit.SetActiveElement(f"Transformer.{name}")
@@ -254,17 +285,26 @@ def _write_equipment(output: Path, bus_metadata: dict, sbase_va: float):
         enabled=int(dss.CktElement.Enabled())
         phase_count=int(dss.Properties.Value('Phases'))
         lead_lag=dss.Properties.Value('LeadLag').strip().lower()
-        dss.Transformers.Wdg(1)
-        from_bus=_normalize_bus(buses[0]); from_phases=_bus_phase_string(buses[0]) or bus_metadata[from_bus]["phases"]
-        from_connection='delta' if dss.Transformers.IsDelta() else 'wye'
-        from_kv=dss.Transformers.kV()
-        for winding in range(2,len(buses)+1):
+        winding_data=[]
+        for winding,spec in enumerate(buses,1):
             dss.Transformers.Wdg(winding)
-            to_bus=_normalize_bus(buses[winding-1]); to_phases=_bus_phase_string(buses[winding-1]) or bus_metadata[to_bus]["phases"]
-            to_connection='delta' if dss.Transformers.IsDelta() else 'wye'
-            to_kv=dss.Transformers.kV()
+            bus=_normalize_bus(spec)
+            winding_data.append({
+                'winding':winding,'bus':bus,'bus_spec':spec.strip().lower(),
+                'phases':_bus_phase_string(spec) or bus_metadata[bus]['phases'],
+                'connection':'delta' if dss.Transformers.IsDelta() else 'wye',
+                'kv':float(dss.Transformers.kV()),'kva':float(dss.Transformers.kVA()),
+                'tap':float(dss.Transformers.Tap()),
+            })
+        primary=winding_data[0]
+        from_bus=primary['bus'];from_phases=primary['phases']
+        from_connection=primary['connection'];from_kv=primary['kv']
+        for winding in range(2,len(buses)+1):
+            detail=winding_data[winding-1]
+            to_bus=detail['bus'];to_phases=detail['phases']
+            to_connection=detail['connection'];to_kv=detail['kv']
             voltage_ratio=to_kv/from_kv if from_kv else ''
-            transformers.append([name,winding-1,from_bus,from_phases,to_bus,to_phases,from_connection,to_connection,voltage_ratio,dss.Transformers.Tap(),enabled])
+            transformers.append([name,winding-1,from_bus,from_phases,to_bus,to_phases,from_connection,to_connection,voltage_ratio,detail['tap'],enabled])
             if phase_count == 3 and from_connection != to_connection:
                 # OpenDSS LeadLag specifies the LV displacement relative to HV:
                 # Lag/ANSI=-30 degrees; Lead/Euro=+30 degrees. Report the
@@ -275,12 +315,31 @@ def _write_equipment(output: Path, bus_metadata: dict, sbase_va: float):
                     name,from_bus,from_phases,to_bus,to_phases,
                     from_connection,to_connection,shift,enabled,
                 ])
+        center_pair=_center_tap_pair(buses,[item['kv'] for item in winding_data],phase_count)
+        if center_pair is not None:
+            for index,detail in enumerate(winding_data):
+                if index==0:role='primary'
+                elif index==center_pair[0]:role='secondary_1'
+                elif index==center_pair[1]:role='secondary_2'
+                else:role='other'
+                center_tapped_transformers.append([
+                    name,detail['winding'],role,detail['bus'],detail['bus_spec'],
+                    detail['connection'],detail['kv']/from_kv if from_kv else '',
+                    1000.0*detail['kva']/sbase_va,detail['tap'],enabled,
+                ])
     with (output/'transformer.csv').open('w',newline='',encoding='utf-8') as f:
         w=csv.writer(f); w.writerow(['transformer_id','secondary_winding','from_bus','from_phases','to_bus','to_phases','from_connection','to_connection','voltage_ratio','tap_pu','enabled']); w.writerows(_formatted_rows(transformers))
     with (output/'phase_shift_equipment.csv').open('w',newline='',encoding='utf-8') as f:
         w=csv.writer(f)
         w.writerow(['equipment_id','from_bus','from_phases','to_bus','to_phases','from_connection','to_connection','phase_shift_deg','enabled'])
         w.writerows(_formatted_rows(phase_shift_equipment))
+    with (output/'center_tapped_transformer.csv').open('w',newline='',encoding='utf-8') as f:
+        w=csv.writer(f)
+        w.writerow([
+            'transformer_id','winding','role','bus_id','bus_spec','connection',
+            'voltage_ratio','rated_s_pu','tap_pu','enabled',
+        ])
+        w.writerows(_formatted_rows(center_tapped_transformers))
 
     switches=[]
     for name in dss.Lines.AllNames():

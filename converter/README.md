@@ -57,10 +57,8 @@ not enough on their own — the converter needs the original master to recover t
 line geometry, transformer windings and regulator settings that an admittance
 matrix cannot carry.
 
-- **`ieee34`, `ieee37`, `ieee123`, `european_lv`** — full `dss/` output beside
-  the CSVs. Eight reductions in all.
-- **`ieee8500`** — OpenDSS origin, but its shipped reductions cannot be converted;
-  see below.
+- **`ieee34`, `ieee37`, `ieee123`, `european_lv`, `ieee8500`** — full `dss/`
+  output beside the CSVs. Ten reductions in all.
 - **`R100`, `R300`** — no OpenDSS origin, CSV only.
 - **`case69`, `case85`, `case141`, `case533mt`, `case1197`** — single-phase
   MATPOWER, exported as `.m` instead.
@@ -68,70 +66,94 @@ matrix cannot carry.
 The CSV files are the primary artefact throughout; `dss/` sits beside them and
 never replaces them.
 
-### The `ieee8500` limitation
-
-The converter requires both terminals of a preserved transformer to survive the
-reduction, so it can re-instantiate it as a real OpenDSS `Transformer`. Opti-KRON
-deliberately does **not** pin plain transformers — on `ieee8500` the 2354 service
-transformers would fix 2400 buses, 49% of the feeder, as a hard ceiling on
-reduction — so the shipped reductions have absorbed them into the Kron equivalent
-and there is nothing left to re-instantiate. The conversion stops with
-
-```text
-Transformer Transformer.t21396254a has non-surviving terminal buses ['l2804253']
-```
-
-which is the converter refusing to invent a circuit it cannot justify, not a bug.
-The two are individually correct and jointly incompatible on this feeder.
-
-Preserving the transformers resolves it and costs 11–13 points of reduction
-(42%→31% at Ē=0.005, 54%→41% at Ē=0.02, measured with the GPU search). The
-shipped levels keep the reduction; pass
-`preserve = (:phase_shift, :regulator, :switch, :transformer)` if you want the
-circuit instead.
-
-A deeper fix — emitting the absorbed transformer's equivalent as a branch — is
-not obviously sound: eliminating a service transformer merges an MV bus with an
-LV one, and the resulting super-node has no single base kV for OpenDSS to carry.
-That is left open rather than guessed at.
-
-## The round trip is a harder test than the budget
+## The round trip, and how it is solved
 
 Each generated snapshot is solved and every surviving super-node compared with
-its original voltage, in `dss/validation.csv` and `dss/report.json`. That number
-is *not* the same as the reduction's certified budget, and on some feeders it is
-much larger:
+its original voltage, in `dss/validation.csv` and `dss/report.json`. All ten
+reductions land inside their budget:
 
-| Case | Level | Ē | Solved DSS error | |
+| Case | Level | Ē | Solved DSS error | Audit |
 |---|---|---|---|---|
-| `european_lv` | 91pct | not binding | 1.6e-04 | well inside |
-| `european_lv` | 98pct | not binding | 5.1e-04 | well inside |
-| `ieee123` | 57pct | 0.002 | 9.4e-04 | inside |
-| `ieee123` | 78pct | 0.006 | 5.2e-03 | inside |
-| `ieee34` | 51pct | 0.003 | 9.4e-03 | **3× over** |
-| `ieee34` | 59pct | 0.010 | 1.0e-02 | at the edge |
-| `ieee37` | 62pct | 0.003 | 8.4e-02 | **28× over** |
-| `ieee37` | 74pct | 0.008 | 8.4e-02 | **11× over** |
+| `ieee37` | 67pct | 0.003 | 5.6e-04 | 1 winding(s) rebased |
+| `ieee37` | 77pct | 0.008 | 1.4e-03 | 1 winding(s) rebased |
+| `ieee34` | 51pct | 0.003 | 1.7e-04 | location-only |
+| `ieee34` | 62pct | 0.01 | 5.0e-04 | location-only |
+| `ieee123` | 57pct | 0.002 | 9.1e-04 | location-only |
+| `ieee123` | 78pct | 0.006 | 3.9e-03 | location-only |
+| `european_lv` | 91pct | 0.01 | 1.5e-04 | location-only |
+| `european_lv` | 98pct | 0.01 | 8.8e-04 | location-only |
+| `ieee8500` | 31pct | 0.005 | 3.0e-03 | location-only |
+| `ieee8500` | 41pct | 0.02 | 2.5e-03 | location-only |
 
-This is not a conversion defect, and the reports rule that out directly: power
-aggregation is exact to `0.0` on every case, and the synthesized Kron `Ybus`
-reproduces the reduction's own to `2.9e-16` on `ieee37` — the *best* of the six,
-against the worst voltage error.
+Getting there took two corrections worth recording, because both look like
+reduction error and neither is.
 
-It is the modelling gap. Opti-KRON certifies its budget against a **constant
-current** linearisation at a fixed operating point; OpenDSS then re-solves the
-reduced circuit with **constant power** loads and the real winding connections.
-The gradient across the table tracks exactly how far each feeder sits from that
-assumption: `european_lv` is 98% unloaded so the distinction barely exists,
-`ieee123` is wye-connected and holds, and `ieee37` — the one all-delta IEEE
-feeder, where load responds to line-to-line voltage — is worst by an order of
-magnitude.
+**Delta loads must stay delta.** An earlier converter derived loads from the
+per-phase injections in `load.csv` and emitted them as wye. That is exact at the
+operating point but wrong once you re-solve: a delta load holds constant P,Q
+against `V₁−V₂`, a wye load against `V₁` alone. On `ieee37` — the one all-delta
+IEEE feeder — the solved error was **8.4e-02, twenty-eight times the budget**,
+and the size of the error tracked each feeder's delta fraction almost exactly
+(0% on `european_lv`, 9% on `ieee123`, 54% on `ieee34`, all of `ieee37`).
+`original-models` fixes it by relocating each original device untouched, changing
+only its bus, so a `701.1.2 Conn=Delta Model=2` load stays exactly that. That is
+worth 204× on `ieee37` and 60× on `ieee34`.
 
-The README already says the operating point is a modelling choice and that
-"a feeder with delta connections, ZIP loads or regulator taps belongs in a tool
-that models them". These numbers are what that sentence costs in practice, and
-they are published rather than hidden: use `ieee37`'s reduced snapshot knowing
-its solved error is 8%, not 0.3%.
+**But relocation is only right when the original device states the operating
+point.** `european_lv`'s loads are `kW=1 PF=0.95 Yearly=Shape_N` — nominal
+placeholders scaled by a profile, with the master running a 1440-step yearly
+simulation — so relocating them reproduces no particular snapshot and the error
+went to 1.9e-02. That feeder takes `nodal-wye`, which reads the powers the
+dataset actually pins down. The mode is therefore chosen per feeder in
+`build_reduced_dss.py`, with the reasoning beside it.
+
+## Moving equipment across a voltage level
+
+Relocating a device to its super-node is only sound while both sit at the same
+nominal voltage. A **constant-impedance or shunt element, a capacitor bank, a ZIP
+load, or an inverter** does not carry its behaviour with it: those models are
+written against a voltage base, and moving them to a bus at a different base
+changes what they do unless every parameter is re-referred through the
+transformer ratio.
+
+The converter now does that re-referring for an **ordinary two-winding
+crossing**: each winding's kV is rebased by its terminals' voltage ratio, the
+original YPrim is transformed as `Ynew = D Yold D` and stamped at the mapped
+nodes. `report.json` records it under `equipment_per_unit_transformation`, and
+`voltage_level_audit` reports three separate things:
+
+| field | meaning |
+|---|---|
+| `location_only_voltage_level_valid` | nothing changed level at all |
+| `per_unit_transformed_equivalent_valid` | crossings were rebased correctly |
+| `incompatible_phase_domain_assignment_count` | a boundary was crossed that **cannot** be rebased |
+
+Only the third is a failure. `ieee37` reduces across its 0.277/2.771 kV winding
+and reports `1 winding rebased` — valid, and worth two extra buses of reduction.
+
+### What cannot be crossed
+
+A **center-tapped transformer** is the case no change of base repairs. Its two
+secondaries sit on one bus in opposite orientation about the centre conductor
+(`.1.0` and `.0.2`), so the primary-to-secondary map is not a diagonal scaling.
+Multi-winding transformers, connection-changing transformers and anything in
+`phase_shift_equipment.csv` therefore define **phase reference domains**, and an
+assignment crossing one is rejected with the offending bus mappings.
+
+`ieee8500` carries 1177 of them across 2315 buses, which is why its reductions
+run to 31% and 41% where the smaller feeders reach 60–90%. That is the honest
+ceiling for a feeder whose service transformers are split-phase, not a defect.
+`center_tapped_transformer.csv` ships beside each dataset so the Julia side can
+pin them; `preserve = :required` does so by default.
+
+### Two error figures on `ieee8500`
+
+`report.json` reports both `max_voltage_magnitude_error_pu` and
+`max_energized_voltage_magnitude_error_pu`. On `ieee8500` the raw maximum is
+6.3e-02 at `e182723.b`, one of ten neutral-like conductors the source dataset
+carries as phase rows at ~0.06 pu; the energized maximum, 3.0e-03, is the figure
+that describes the reduction. `build_reduced_dss.py` prints the energized one and
+notes the raw one in brackets.
 
 ## Documentation
 

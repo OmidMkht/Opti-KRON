@@ -147,6 +147,27 @@ endpoint buses and phases, both winding connections, solved `tap_pu`, and
 enabled state. The dimensionless `voltage_ratio` is the shifted-winding rated
 kV divided by winding-1 rated kV.
 
+### `center_tapped_transformer.csv`
+
+One row per winding of every automatically detected center-tapped transformer:
+
+```text
+transformer_id,winding,role,bus_id,bus_spec,connection,voltage_ratio,rated_s_pu,tap_pu,enabled
+```
+
+The roles are `primary`, `secondary_1`, and `secondary_2`. Detection requires a
+single-phase transformer with at least three windings and a pair of equal-rated
+secondary windings on the same bus whose ordered terminal specifications share
+the center conductor. For example, `.1.0` and `.0.2` identify two oppositely
+oriented secondary windings sharing neutral node 0. The complete `bus_spec` is
+therefore retained; `bus_id` alone is insufficient to describe the topology.
+
+`voltage_ratio` is the winding rated voltage divided by winding-1 rated voltage.
+`rated_s_pu` uses the dataset system power base, and `tap_pu` is the solved
+winding tap. A header-only file means no center-tapped transformer was detected.
+This file is intended both for reconstruction and for preventing assignments
+from crossing a center-tapped transformer domain.
+
 ### `switch.csv`
 
 One row per detected switch, including endpoint buses/phases, enabled state,
@@ -227,13 +248,13 @@ the endpoint back to its logical bus name and records `status=open`.
 
 The maintained outputs are under `data/datasets/`:
 
-| Dataset | Buses | Phase nodes | Coordinates | Regulators | Capacitors | Phase shifters | Sbase (MVA) |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| IEEE 34 | 37 | 95 | 37 | 6 | 2 | 1 | 2.5 |
-| IEEE 37 | 39 | 117 | 39 | 2 | 0 | 0 | 2.5 |
-| IEEE 123 | 130 | 274 | 130 | 7 | 4 | 0 | 5.0 |
-| European LV | 907 | 2721 | 906 | 0 | 0 | 1 | 0.8 |
-| IEEE 8500 | 4876 | 8541 | 2459 | 12 | 10 | 1 | 27.5 |
+| Dataset | Buses | Phase nodes | Coordinates | Regulators | Capacitors | Phase shifters | Center taps | Sbase (MVA) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| IEEE 34 | 37 | 95 | 37 | 6 | 2 | 1 | 0 | 2.5 |
+| IEEE 37 | 39 | 117 | 39 | 2 | 0 | 0 | 0 | 2.5 |
+| IEEE 123 | 130 | 274 | 130 | 7 | 4 | 0 | 0 | 5.0 |
+| European LV | 907 | 2721 | 906 | 0 | 0 | 1 | 0 | 0.8 |
+| IEEE 8500 | 4876 | 8541 | 2459 | 12 | 10 | 1 | 1177 | 27.5 |
 
 Counts reflect the actual OpenDSS circuit graph after compilation, including
 source, regulator-created, secondary, auxiliary, and internal buses. They are
@@ -242,8 +263,9 @@ not expected to equal the marketing name of a feeder.
 ## Important reduction cautions
 
 Before reducing a dataset, preserve or explicitly model source terminals,
-transformer ratios/connections, regulator terminal buses and solved taps,
-switch status, capacitor states, voltage-base changes, and phase availability.
+transformer ratios/connections, center-tap winding orientation, regulator
+terminal buses and solved taps, switch status, capacitor states, voltage-base
+changes, and phase availability.
 The snapshot injections reproduce one solved operating point; they do not
 preserve future ZIP behavior, control actions, time-series behavior, protection
 logic, or regulator/capacitor switching thresholds.
