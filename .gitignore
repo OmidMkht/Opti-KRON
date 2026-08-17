@@ -9,6 +9,18 @@ Manifest.toml
 **/outputs/
 *.log
 
+# OpenDSS demand-interval output. Compiling LVTestCase/Master.dss runs its
+# 1440-step yearly simulation with `set demand=true`, which writes these beside
+# the case; they are results, not inputs.
+converter/opendss_cases/**/DI_yr_*/
+converter/opendss_cases/**/*_EXP_*.csv
+
+# The reduced admittance of the largest feeder, ~2.5 MB across its two levels.
+# Derived from assignment.csv and rebuilt on demand -- `build_reduced_dss.py`
+# regenerates it by sparse LU, or see the level's note for the run_optikron.jl
+# recipe. Every other reduced network ships its ybus.csv.
+reduced_networks/ieee8500/*/ybus.csv
+
 # Python (converter/)
 __pycache__/
 *.py[cod]
